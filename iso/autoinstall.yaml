@@ -1,0 +1,36 @@
+# Vibian autoinstall (subiquity reads /autoinstall.yaml from the install media).
+# Without `autoinstall` on the kernel command line subiquity asks before it
+# wipes anything; build.sh --unattended adds the flag for VM tests only.
+autoinstall:
+  version: 1
+  interactive-sections:
+    - network
+    - identity
+  source:
+    id: ubuntu-server-minimal
+  drivers:
+    install: true
+  updates: security
+  ssh:
+    install-server: true
+    allow-pw: false
+  storage:
+    swap:
+      size: 0
+    # UEFI only for M0. LUKS2 and BIOS boot come later.
+    config:
+      - {type: disk, id: disk0, match: {size: largest}, ptable: gpt, wipe: superblock-recursive, preserve: false, grub_device: false}
+      - {type: partition, id: esp, device: disk0, number: 1, size: 1G, flag: boot, grub_device: true, preserve: false}
+      - {type: partition, id: rootp, device: disk0, number: 2, size: -1, preserve: false}
+      - {type: format, id: esp-fmt, volume: esp, fstype: fat32, preserve: false}
+      - {type: format, id: root-fmt, volume: rootp, fstype: btrfs, preserve: false}
+      - {type: mount, id: root-mnt, device: root-fmt, path: /}
+      - {type: mount, id: esp-mnt, device: esp-fmt, path: /boot/efi}
+  packages:
+    - btrfs-progs
+    - snapper
+    - inotify-tools
+    - git
+    - curl
+  late-commands:
+    - bash /cdrom/vibian/btrfs-layout.sh /target
