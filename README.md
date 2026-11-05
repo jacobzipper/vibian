@@ -35,7 +35,7 @@ vibian apply github:someone/their-rice     # their setup, rebuilt by your agent,
 | ISO remaster pipeline | ✅ boots and installs unattended in a KVM VM (UEFI) |
 | btrfs + snapper autoinstall layout | ✅ boots from `@`, apt snapshots work ([test](tests/vm/headless-install.sh)) |
 | grub-btrfs snapshot boot menu | ✅ packaged ([`packages/grub-btrfs`](packages/grub-btrfs)), menu fills in as snapshots are taken |
-| Booting a snapshot | ⏳ |
+| Booting a snapshot | ✅ pick it in GRUB → the system comes up as it was, in a RAM overlay ([`packages/vibian-base`](packages/vibian-base)) |
 | Onboarding TUI, `vibian` CLI, ledger | ⏳ |
 | 14 OS skills + computer-use MCP | ⏳ |
 | 10 desktop playbooks | ⏳ |

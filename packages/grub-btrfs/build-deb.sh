@@ -9,7 +9,7 @@ set -euo pipefail
 VERSION=4.14
 SHA256=4fe2f8a49b39e3e561fc51bbc5a0f81a7222c1e9ef8672e014e0ba3bedad20c6
 URL=https://github.com/Antynea/grub-btrfs/archive/refs/tags/v$VERSION.tar.gz
-REV=1vibian1
+REV=1vibian3
 
 out=${1:?usage: build-deb.sh OUT_DIR}
 mkdir -p "$out"
@@ -25,6 +25,15 @@ pkg=$work/pkg
 make -s -C "$work/grub-btrfs-$VERSION" install DESTDIR="$pkg" \
   SYSTEMD=true OPENRC=false GRUB_UPDATE_EXCLUDE=true INSTALL_DOCS=true >/dev/null
 rm -rf "$pkg/usr/lib/initcpio"  # Arch-only overlay hook
+# Snapshots are read-only: have dracut boot them under a RAM overlay
+# (vibian-base adds dracut's overlayfs module).
+sed -i 's|^#GRUB_BTRFS_SNAPSHOT_KERNEL_PARAMETERS=.*|GRUB_BTRFS_SNAPSHOT_KERNEL_PARAMETERS="rd.overlay=1"|' \
+  "$pkg/etc/default/grub-btrfs/config"
+# grub-btrfs names the submenu after /etc/os-release, which still says Ubuntu
+sed -i 's|^#GRUB_BTRFS_SUBMENUNAME=.*|GRUB_BTRFS_SUBMENUNAME="Vibian snapshots"|' \
+  "$pkg/etc/default/grub-btrfs/config"
+grep -q '^GRUB_BTRFS_SNAPSHOT_KERNEL_PARAMETERS="rd.overlay=1"' "$pkg/etc/default/grub-btrfs/config"
+grep -q '^GRUB_BTRFS_SUBMENUNAME="Vibian snapshots"' "$pkg/etc/default/grub-btrfs/config"
 
 mkdir -p "$pkg/DEBIAN"
 cat > "$pkg/DEBIAN/control" <<CTL

@@ -58,6 +58,8 @@ ssh_vm 'set -x
   echo "grub-btrfsd=$(systemctl is-active grub-btrfsd)"
   echo "grub-cfg-hooks=$(s grep -c snapshots-btrfs /boot/grub/grub.cfg)"
   echo "grub-snapshot-entries=$(s grep -c "@snapshots/" /boot/grub/grub-btrfs.cfg)"
+  echo "initrd-overlayfs=$(s lsinitrd 2>/dev/null | grep -c overlayfs)"
+  echo "snapshot-cmdline=$(s grep -c "rd.overlay=1" /boot/grub/grub-btrfs.cfg)"
   cat /proc/cmdline
   ls /var/log/installer/vibian-layout.log && tail -2 /var/log/installer/vibian-layout.log' 2>&1 | tee checks.log
 
@@ -66,7 +68,54 @@ for want in 'subvol=/@,' 'subvol=/@home' 'subvol=/@snapshots' 'subvol=/@home_sna
             'root,/' 'home,/home' 'apt' 'vibian: btrfs layout done'; do
   grep -qF -- "$want" checks.log || { echo "MISSING: $want"; fail=1; }
 done
-for want in 'grub-btrfsd=active' 'grub-cfg-hooks=[1-9]' 'grub-snapshot-entries=[1-9]'; do
+for want in 'grub-btrfsd=active' 'grub-cfg-hooks=[1-9]' 'grub-snapshot-entries=[1-9]' 'initrd-overlayfs=[1-9]' 'snapshot-cmdline=[1-9]'; do
   grep -qE -- "^$want" checks.log || { echo "MISSING: $want"; fail=1; }
+done
+[ $fail = 0 ] || { echo "VM-TEST-FAIL"; exit 1; }
+
+# Snapshot boot: take a snapshot, break the system, then pick the snapshot in
+# the GRUB menu with the arrow keys (like a person would) and check we're back
+# in the pre-break state.
+echo "== snapshot boot"
+ssh_vm 'set -x
+  s() { echo vibian | sudo -S -p "" "$@"; }
+  n=$(s snapper -c root create -d pre-break --print-number)
+  s touch /etc/vibian-broken
+  s apt-get remove -y -q cowsay >/dev/null
+  sleep 10
+  echo "snapshot-menu=$(s grep -c "Vibian snapshots" /boot/grub/grub.cfg)"
+  # menu positions: snapshot n in the snapshots list, the running kernel in its submenu
+  s awk -v p="@snapshots/$n/snapshot " -v k="vmlinuz-$(uname -r)" "
+    /^(menuentry|submenu) /{i++; in_snap=index(\$0,p)>0; j=0; if (in_snap) print \"snap-pos=\" i-1}
+    in_snap && /^    menuentry /{j++; if (index(\$0,k)) print \"kernel-pos=\" j}" /boot/grub/grub-btrfs.cfg
+  s systemctl poweroff' 2>&1 | tee snapshot.log || true
+for _ in $(seq 1 60); do [ -e vm.pid ] && kill -0 "$(cat vm.pid)" 2>/dev/null || break; sleep 2; done
+snap_pos=$(sed -n 's/^snap-pos=//p' snapshot.log | head -1)
+kernel_pos=$(sed -n 's/^kernel-pos=//p' snapshot.log | head -1)
+echo "snapshot at menu position ${snap_pos:-?}, kernel at ${kernel_pos:-?}"
+
+"${qemu[@]}" -serial file:snapshot.serial.log -monitor unix:mon.sock,server=on,wait=off -daemonize -pidfile vm.pid
+mon() { echo "$1" | socat -t 1 - UNIX-CONNECT:mon.sock >/dev/null; }
+press() { local k=$1 n=${2:-1}; for _ in $(seq 1 "$n"); do mon "sendkey $k"; sleep 0.4; done; }
+# "End" is harmless until GRUB shows up and then stops the countdown on the
+# last entry, which is the snapshots submenu
+wait_s=10; [ "$accel" = kvm ] || wait_s=120
+for _ in $(seq 1 $((wait_s * 2))); do mon "sendkey end"; sleep 0.5; done
+press ret; sleep 2
+press down "${snap_pos:-1}"; press ret; sleep 2
+press down "${kernel_pos:-1}"; press ret
+for _ in $(seq 1 60); do ssh_vm true 2>/dev/null && break; sleep 5; done
+ssh_vm 'set -x
+  cat /proc/cmdline
+  findmnt -no FSTYPE,SOURCE /
+  echo "root-fs=$(findmnt -no FSTYPE /)"
+  echo "broken-marker=$(test -e /etc/vibian-broken && echo present || echo gone)"
+  echo "cowsay=$(test -x /usr/games/cowsay && echo present || echo gone)"
+  echo "root-writable=$(echo vibian | sudo -S -p "" touch /etc/vibian-overlay-test && echo yes || echo no)"
+  systemctl --failed --no-legend
+  echo "system-state=$(systemctl is-system-running)"' 2>&1 | tee -a snapshot.log
+
+for want in 'snapshot-menu=[1-9]' 'snap-pos=[0-9]' 'kernel-pos=[0-9]' 'subvol=@snapshots/' 'root-fs=overlay' 'broken-marker=gone' 'cowsay=present' 'root-writable=yes' 'system-state=running'; do
+  grep -qE -- "$want" snapshot.log || { echo "MISSING (snapshot boot): $want"; fail=1; }
 done
 [ $fail = 0 ] && echo "VM-TEST-PASS" || { echo "VM-TEST-FAIL"; exit 1; }

@@ -28,6 +28,7 @@ mkdir -p "$work/vibian"
 cp "$here/btrfs-layout.sh" "$work/vibian/"
 # packages the Ubuntu archive lacks, installed by btrfs-layout.sh
 bash "$here/../packages/grub-btrfs/build-deb.sh" "$work/vibian/pool" >/dev/null
+bash "$here/../packages/vibian-base/build-deb.sh" "$work/vibian/pool" >/dev/null
 cp "$here/autoinstall.yaml" "$work/autoinstall.yaml"
 
 cmdline=""
