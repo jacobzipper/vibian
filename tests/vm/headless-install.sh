@@ -54,6 +54,10 @@ ssh_vm 'set -x
   s snapper --csvout list-configs
   s apt-get install -y -q cowsay >/dev/null
   s snapper --csvout -c root list --columns number,description
+  sleep 10  # grub-btrfsd regenerates the menu after each snapshot
+  echo "grub-btrfsd=$(systemctl is-active grub-btrfsd)"
+  echo "grub-cfg-hooks=$(s grep -c snapshots-btrfs /boot/grub/grub.cfg)"
+  echo "grub-snapshot-entries=$(s grep -c "@snapshots/" /boot/grub/grub-btrfs.cfg)"
   cat /proc/cmdline
   ls /var/log/installer/vibian-layout.log && tail -2 /var/log/installer/vibian-layout.log' 2>&1 | tee checks.log
 
@@ -61,5 +65,8 @@ fail=0
 for want in 'subvol=/@,' 'subvol=/@home' 'subvol=/@snapshots' 'subvol=/@home_snapshots' 'subvol=/@var_log' \
             'root,/' 'home,/home' 'apt' 'vibian: btrfs layout done'; do
   grep -qF -- "$want" checks.log || { echo "MISSING: $want"; fail=1; }
+done
+for want in 'grub-btrfsd=active' 'grub-cfg-hooks=[1-9]' 'grub-snapshot-entries=[1-9]'; do
+  grep -qE -- "^$want" checks.log || { echo "MISSING: $want"; fail=1; }
 done
 [ $fail = 0 ] && echo "VM-TEST-PASS" || { echo "VM-TEST-FAIL"; exit 1; }

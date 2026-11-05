@@ -71,6 +71,15 @@ if [ -n "$esp" ]; then mount "$esp" "$r/boot/efi"; fi
 for d in dev dev/pts proc sys run; do mount --bind "/$d" "$r/$d"; done
 if [ -d /sys/firmware/efi/efivars ]; then mount --bind /sys/firmware/efi/efivars "$r/sys/firmware/efi/efivars"; fi
 
+# Vibian's own packages (grub-btrfs isn't in the Ubuntu archive)
+pool=$(dirname "$0")/pool
+if compgen -G "$pool/*.deb" >/dev/null; then
+  mkdir -p "$r/tmp/vibian-pool"
+  cp "$pool"/*.deb "$r/tmp/vibian-pool/"
+  chroot "$r" sh -c 'dpkg -i /tmp/vibian-pool/*.deb'
+  rm -rf "$r/tmp/vibian-pool"
+fi
+
 chroot "$r" update-grub
 if [ -n "$esp" ] && [ -f "$r/boot/efi/EFI/ubuntu/grub.cfg" ]; then
   # signed GRUB reads this stub from the ESP to find /boot/grub
