@@ -220,7 +220,7 @@ func (m Model) afterExec(msg execMsg) (tea.Model, tea.Cmd) {
 
 // announce prints a header before a command takes over the terminal.
 func announce(c *exec.Cmd, what string) *exec.Cmd {
-	script := `printf '\n\033[1;33m▸ %s\033[0m\n\n' "$1"; shift; "$@"; rc=$?; ` +
+	script := `printf '\033[H\033[2J\033[1;33m▸ %s\033[0m\n\n' "$1"; shift; "$@"; rc=$?; ` +
 		`[ $rc -eq 0 ] || { printf '\n\033[31mexit %s\033[0m. Press enter to go back.' $rc; read -r _; }; exit $rc`
 	wrapped := exec.Command("sh", append([]string{"-c", script, "sh", what, c.Path}, c.Args[1:]...)...)
 	wrapped.Env, wrapped.Dir = c.Env, c.Dir
@@ -287,7 +287,11 @@ func (m Model) View() string {
 		} else {
 			b.WriteString("This runs the official installer:\n\n  " + dim.Render(m.harness.Install) + "\n")
 			if m.harness.LoginCmd() == nil {
-				b.WriteString("\nYou'll log in the first time it starts.\n")
+				hint := m.harness.LoginHint
+				if hint == "" {
+					hint = "You'll log in the first time it starts."
+				}
+				b.WriteString("\n" + hint + "\n")
 			} else {
 				b.WriteString("\nThen its login (" + strings.Join(m.harness.Login, " ") + "). There's no browser yet,\nso open the link it shows on your phone.\n")
 			}
@@ -311,7 +315,11 @@ func (m Model) View() string {
 	case stepHandoff:
 		b.WriteString(bold.Render("All set.") + "\n\n")
 		b.WriteString(fmt.Sprintf("Agent:   %s\nPowers:  %s\n\n", m.harness.Name, m.powers))
-		b.WriteString("Press enter and " + m.harness.Name + " takes over. Start it again any time\nwith `vibian agent`. Useful commands:\n\n")
+		b.WriteString("Press enter and " + m.harness.Name + " takes over. Start it again any time\nwith `vibian agent`.\n\n")
+		if m.harness.LoginCmd() == nil && m.harness.LoginHint != "" {
+			b.WriteString(warnSty.Render(m.harness.LoginHint) + "\n\n")
+		}
+		b.WriteString("Useful commands:\n\n")
 		b.WriteString(dim.Render("  vibian log        what changed, and by whom\n  vibian undo --last\n  vibian doctor") + "\n\n")
 		b.WriteString(dim.Render("enter: hand over  ·  b: back"))
 	}

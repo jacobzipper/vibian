@@ -22,6 +22,8 @@ type Harness struct {
 	Install string
 	// Login runs after install. Empty means the harness logs in on first launch.
 	Login []string
+	// LoginHint tells the user how to log in when Login is empty.
+	LoginHint string
 	// LoginEnv is set for both Login and the first launch (no browser yet).
 	LoginEnv []string
 	// Instructions is the user-level instructions file, relative to $HOME.
@@ -31,7 +33,8 @@ type Harness struct {
 	SkillDirs []string
 	// AutoFlags put the harness in its no-prompts mode (powers = root).
 	AutoFlags []string
-	// PromptArgs starts an interactive session with a first message.
+	// PromptArgs starts an interactive session with a first message. Nil when
+	// a first message would fail because login happens inside the session.
 	PromptArgs func(prompt string) []string
 	// Unverified marks paths taken from docs but not yet run in a VM.
 	Unverified bool
@@ -44,6 +47,7 @@ var All = []Harness{
 	{
 		ID: "claude", Name: "Claude Code", Vendor: "Anthropic", Licence: "proprietary", Binary: "claude",
 		Install:      "curl -fsSL https://claude.ai/install.sh | bash",
+		LoginHint:    "Claude Code asks you to log in when it starts. Open the link it shows on your phone.",
 		Instructions: ".claude/CLAUDE.md",
 		SkillDirs:    []string{".claude/skills"},
 		AutoFlags:    []string{"--dangerously-skip-permissions"},
@@ -87,10 +91,13 @@ var All = []Harness{
 	},
 	{
 		ID: "pi", Name: "pi", Vendor: "Earendil", Licence: "MIT", Binary: "pi",
-		Install:      "curl -fsSL https://pi.dev/install.sh | sh",
+		// stdout through cat: the installer ends with "Start pi now? [Y/n]"
+		// only when stdout is a terminal, and vibian starts pi itself after
+		// configuring it. Its other prompts read /dev/tty, so they still work.
+		Install:      "curl -fsSL https://pi.dev/install.sh | sh | cat",
+		LoginHint:    "pi starts without a model: type /login and pick a provider, then say hi.",
 		Instructions: ".pi/agent/AGENTS.md",
 		SkillDirs:    []string{agentsSkills},
-		PromptArgs:   func(p string) []string { return []string{p} },
 	},
 	{
 		ID: "cursor", Name: "Cursor CLI", Vendor: "Anysphere", Licence: "proprietary", Binary: "agent",

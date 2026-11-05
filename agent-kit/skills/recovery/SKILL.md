@@ -1,6 +1,6 @@
 ---
 name: recovery
-description: Undo changes and recover a broken Vibian system with snapper snapshots, the ledger, boot-to-snapshot from GRUB, rollback, initramfs/GRUB repair and chroot from a live USB. Use when something broke after a change, the machine won't boot, the user says "undo that" or "go back to how it was", or before doing anything to boot, kernel, fstab or initramfs.
+description: "Undo changes and recover a broken Vibian system with snapper snapshots, the ledger, boot-to-snapshot from GRUB, rollback, initramfs/GRUB repair and chroot from a live USB. Use when something broke after a change, the machine won't boot, the user says \"undo that\" or \"go back to how it was\", or before doing anything to boot, kernel, fstab or initramfs."
 ---
 
 # Recovery on Vibian

@@ -1,6 +1,6 @@
 ---
 name: packages
-description: Install, remove, upgrade or find software on Vibian (apt, PPAs, Flatpak, Snap, upstream .debs and installers), fix broken dpkg/apt states, and handle mirror or DNS failures. Use for any "install X", "update the system", "apt is broken" or "where does this package come from" request.
+description: "Install, remove, upgrade or find software on Vibian (apt, PPAs, Flatpak, Snap, upstream .debs and installers), fix broken dpkg/apt states, and handle mirror or DNS failures. Use for any \"install X\", \"update the system\", \"apt is broken\" or \"where does this package come from\" request."
 ---
 
 # Packages on Vibian

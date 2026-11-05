@@ -3,6 +3,7 @@
 package doctor
 
 import (
+	"errors"
 	"net"
 	"os"
 	"path/filepath"
@@ -185,26 +186,47 @@ func network() Check {
 
 func dns() Check {
 	c := Check{ID: "dns", Name: "Internet"}
-	done := make(chan error, 1)
-	go func() { _, err := net.LookupHost("archive.ubuntu.com"); done <- err }()
-	select {
-	case err := <-done:
-		if err != nil {
-			c.Status, c.Detail = Fail, "can't resolve archive.ubuntu.com"
-			c.Fix = "resolvectl status"
+	// several hosts: some networks block or can't resolve one of them
+	hosts := []string{"archive.ubuntu.com", "github.com", "pi.dev"}
+	type res struct {
+		host string
+		err  error
+	}
+	done := make(chan res, len(hosts))
+	for _, h := range hosts {
+		go func() {
+			conn, err := net.DialTimeout("tcp", h+":443", 3*time.Second)
+			if err == nil {
+				conn.Close()
+			}
+			done <- res{h, err}
+		}()
+	}
+	var failed []string
+	resolved := false
+	timeout := time.After(4 * time.Second)
+	for range hosts {
+		select {
+		case r := <-done:
+			if r.err == nil {
+				c.Status, c.Detail = OK, "online (reached "+r.host+")"
+				return c
+			}
+			var dnsErr *net.DNSError
+			if !errors.As(r.err, &dnsErr) {
+				resolved = true
+			}
+			failed = append(failed, r.host)
+		case <-timeout:
+			c.Status, c.Detail, c.Fix = Fail, "no answer from "+strings.Join(hosts, ", "), "resolvectl status; ip route"
 			return c
 		}
-	case <-time.After(3 * time.Second):
-		c.Status, c.Detail = Fail, "DNS timed out"
+	}
+	if resolved {
+		c.Status, c.Detail, c.Fix = Fail, "DNS works but "+strings.Join(failed, ", ")+" are unreachable", "ip route; is a proxy or captive portal in the way?"
 		return c
 	}
-	conn, err := net.DialTimeout("tcp", "archive.ubuntu.com:80", 3*time.Second)
-	if err != nil {
-		c.Status, c.Detail = Warn, "DNS works but archive.ubuntu.com is unreachable"
-		return c
-	}
-	conn.Close()
-	c.Status, c.Detail = OK, "online"
+	c.Status, c.Detail, c.Fix = Fail, "can't resolve "+strings.Join(failed, ", "), "resolvectl status"
 	return c
 }
 

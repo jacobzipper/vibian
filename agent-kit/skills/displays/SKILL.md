@@ -1,6 +1,6 @@
 ---
 name: displays
-description: Monitors on Vibian: resolution, refresh rate, scaling/HiDPI, multi-monitor layout, rotation, mirroring and fractional scaling, for Hyprland, Sway, niri, KDE Plasma, GNOME, X11 desktops and the bare console. Use for "my screen is blurry/tiny/wrong resolution", "add my second monitor", "set 144Hz" or "the laptop screen should be on the left".
+description: "Monitors on Vibian: resolution, refresh rate, scaling/HiDPI, multi-monitor layout, rotation, mirroring and fractional scaling, for Hyprland, Sway, niri, KDE Plasma, GNOME, X11 desktops and the bare console. Use for \"my screen is blurry/tiny/wrong resolution\", \"add my second monitor\", \"set 144Hz\" or \"the laptop screen should be on the left\"."
 ---
 
 # Displays on Vibian

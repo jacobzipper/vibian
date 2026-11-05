@@ -116,7 +116,7 @@ func runAgent(cfg harness.Config, prompt string) error {
 	if cfg.Powers == harness.PowersRoot {
 		argv = append(argv, h.AutoFlags...)
 	}
-	if prompt != "" {
+	if prompt != "" && h.PromptArgs != nil {
 		argv = append(argv, h.PromptArgs(prompt)...)
 	}
 

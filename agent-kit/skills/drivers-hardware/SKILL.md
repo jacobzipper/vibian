@@ -1,6 +1,6 @@
 ---
 name: drivers-hardware
-description: Graphics drivers (NVIDIA incl. hybrid laptops/PRIME, AMD, Intel), Secure Boot MOK enrolment, firmware updates (fwupd), Wi-Fi/Bluetooth firmware, fingerprint readers and vendor laptop tools on Vibian. Use for "my GPU isn't used", "install the NVIDIA driver", black screens after driver changes, CUDA, firmware updates and unknown hardware.
+description: "Graphics drivers (NVIDIA incl. hybrid laptops/PRIME, AMD, Intel), Secure Boot MOK enrolment, firmware updates (fwupd), Wi-Fi/Bluetooth firmware, fingerprint readers and vendor laptop tools on Vibian. Use for \"my GPU isn't used\", \"install the NVIDIA driver\", black screens after driver changes, CUDA, firmware updates and unknown hardware."
 ---
 
 # Drivers and hardware on Vibian
