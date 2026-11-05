@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/vibian-logo-dark.png">
+    <img src="docs/assets/vibian-logo-light.png" alt="Vibian's mascot, a winking sphinx cat" width="160">
+  </picture>
+</p>
+
 # Vibian
 
 **A Linux that boots to a blank terminal. You pick a coding agent, and the agent builds the rest.**
