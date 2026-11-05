@@ -24,14 +24,19 @@ rm -f disk.qcow2 vars.fd
 qemu-img create -f qcow2 disk.qcow2 40G >/dev/null
 cp "$ovmf/OVMF_VARS_4M.fd" vars.fd
 
+# a cancelled job must not leave a VM holding the disk and the ssh port
+trap 'pkill -P $$ 2>/dev/null; [ -f install.pid ] && kill "$(cat install.pid)" 2>/dev/null; true' EXIT TERM INT
 echo "== install ($accel) $(date -u +%T)"
+# serial goes to a log and a socket, so a stuck installer can be poked with
+# `socat - UNIX-CONNECT:WORKDIR/serial.sock`
 timeout "${INSTALL_TIMEOUT:-4h}" "${qemu[@]}" -cdrom "$iso" -boot d \
-  -serial file:install.serial.log
+  -chardev socket,id=s0,path=serial.sock,server=on,wait=off,logfile=install.serial.log \
+  -serial chardev:s0 -pidfile install.pid
 echo "== installer exited $(date -u +%T)"
 
 echo "== first boot"
 "${qemu[@]}" -serial file:boot.serial.log -daemonize -pidfile vm.pid
-trap 'kill "$(cat vm.pid)" 2>/dev/null || true' EXIT
+trap 'kill "$(cat vm.pid)" 2>/dev/null; true' EXIT TERM INT
 
 ssh_vm() {
   sshpass -p vibian ssh -p 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \

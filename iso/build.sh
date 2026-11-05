@@ -8,6 +8,8 @@
 # --unattended is for VM tests only: no confirmation before wiping the largest
 # disk, and a throwaway login (vibian / vibian).
 # VIBIAN_CMDLINE_EXTRA adds kernel arguments (e.g. console=ttyS0,115200).
+# VIBIAN_APT_MIRROR points the install at another archive, e.g. an IP-addressed
+# one on networks whose DNS can't resolve Canonical hosts.
 set -euo pipefail
 
 UBUNTU_SHA256=cc8a95cde20f6ced61a322420de00f10cc3c90ced545daa46cb9c1a117f1d927
@@ -51,6 +53,24 @@ open(p, "w").write(head + tail)
 PY
 fi
 cmdline="$cmdline ${VIBIAN_CMDLINE_EXTRA:-}"
+if [ -n "${VIBIAN_APT_MIRROR:-}" ]; then
+  python3 - "$work/autoinstall.yaml" "$VIBIAN_APT_MIRROR" <<'PY'
+import sys
+p, m = sys.argv[1:]
+s = open(p).read()
+apt = f"""  apt:
+    geoip: false
+    primary:
+      - arches: [default]
+        uri: {m}
+    security:
+      - arches: [default]
+        uri: {m}
+"""
+s = s.replace("  version: 1\n", "  version: 1\n" + apt, 1)
+open(p, "w").write(s)
+PY
+fi
 sed "s|@CMDLINE@|${cmdline# }|" "$here/grub.cfg" > "$work/grub.cfg"
 
 # keep casper's integrity check honest

@@ -25,8 +25,9 @@ vibian apply github:someone/their-rice     # their setup, rebuilt by your agent,
 |---|---|
 | Spec | ✅ draft 1 |
 | Harness adapter research | ✅ [`docs/research/harness-adapters.md`](docs/research/harness-adapters.md) |
-| ISO remaster pipeline | 🔨 in progress |
-| btrfs + snapper autoinstall layout | 🔨 in progress |
+| ISO remaster pipeline | ✅ boots and installs unattended in a KVM VM (UEFI) |
+| btrfs + snapper autoinstall layout | ✅ boots from `@`, apt snapshots work ([test](tests/vm/headless-install.sh)) |
+| grub-btrfs snapshot boot menu | ⏳ not in Ubuntu 26.04, packaging it ourselves |
 | Onboarding TUI, `vibian` CLI, ledger | ⏳ |
 | 14 OS skills + computer-use MCP | ⏳ |
 | 10 desktop playbooks | ⏳ |

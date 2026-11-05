@@ -106,8 +106,16 @@ for d in sys/firmware/efi/efivars run proc dev/pts dev sys boot/efi home; do
 done
 umount "$r"
 
-# The pre-snapshot copy at the top level is now dead weight.
-find "$top" -mindepth 1 -maxdepth 1 ! -name '@*' -exec rm -rf {} +
-echo "vibian: btrfs layout done"
-mkdir -p "$top/@var_log/installer" && cp "$log" "$top/@var_log/installer/vibian-layout.log"
+# The pre-snapshot copy at the top level is now dead weight. The installer
+# still has /boot/efi and /cdrom mounted on top-level directories, so those
+# two stay behind (empty) and rm reports them busy.
+find "$top" -mindepth 1 -maxdepth 1 ! -name '@*' -exec rm -rf {} + || true
 umount "$top"
+
+# Subiquity copies its own logs to $T/var/log/installer after late-commands.
+# Point that path at @var_log so they land in the installed system.
+mkdir -p "$T/var/log"
+mount -o "subvol=/@var_log,$opts" "$dev" "$T/var/log"
+mkdir -p "$T/var/log/installer"
+cp "$log" "$T/var/log/installer/vibian-layout.log"
+echo "vibian: btrfs layout done" | tee -a "$T/var/log/installer/vibian-layout.log"
