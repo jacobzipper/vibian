@@ -1,0 +1,11 @@
+# build artefacts
+*.iso
+*.qcow2
+*.img
+out/
+build/
+/dist/
+# secrets never belong here
+.env
+*.pem
+*.key

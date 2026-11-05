@@ -1,0 +1,45 @@
+# Vibian
+
+**A Linux that boots to a blank terminal. You pick a coding agent, and the agent builds the rest.**
+
+Vibian is an Ubuntu 26.04 LTS–based distro for people who already live in Claude Code, Codex, opencode, OpenClaw, pi, Gemini CLI or Cursor. Install it and you get a terminal and an onboarding screen. Pick your agent, log in, and from then on the agent runs your machine. It sets up drivers, wifi and power. Then it interviews you and builds a desktop: Hyprland, KDE, GNOME, niri, Sway, i3, XFCE, COSMIC, a widget desk, or something nobody has made before.
+
+Root for an LLM sounds insane, so Vibian is built around undo:
+
+- **Snapshots of `/` and `/home`** (btrfs + snapper) before every agent session, every turn and every package change. They're bootable from GRUB if something goes very wrong.
+- **The ledger:** every change the agent makes (files, packages, snapshots, how to undo it, gotchas learned) goes into plain markdown. Any agent can read it, so you can switch harnesses and the next agent knows your machine.
+- **`vibian undo`** reverts a single ledger entry, or the whole session.
+
+And because the ledger knows how your machine was built, **you can share it**:
+
+```sh
+vibian export --publish                    # your whole setup → a git repo
+vibian apply github:someone/their-rice     # their setup, rebuilt by your agent, adapted to your hardware
+```
+
+## Status
+
+🚧 **Pre-alpha, built in public.** Nothing to install yet. The design is in [`docs/SPEC.md`](docs/SPEC.md).
+
+| | |
+|---|---|
+| Spec | ✅ draft 1 |
+| Harness adapter research | ✅ [`docs/research/harness-adapters.md`](docs/research/harness-adapters.md) |
+| ISO remaster pipeline | 🔨 in progress |
+| btrfs + snapper autoinstall layout | 🔨 in progress |
+| Onboarding TUI, `vibian` CLI, ledger | ⏳ |
+| 14 OS skills + computer-use MCP | ⏳ |
+| 10 desktop playbooks | ⏳ |
+| Examples (Bloomberg desk, startup mission control, grandma mode) | ⏳ |
+
+## Why not Omarchy?
+
+Omarchy is great if you want DHH's desktop. Vibian is for people who want *their own*. It starts with no desktop at all, runs on Ubuntu LTS so NVIDIA cards and Secure Boot just work, snapshots `/home` as well as `/`, and lets you share whole machines rather than just themes. There's a longer comparison in the [spec](docs/SPEC.md#1-positioning).
+
+## Origin
+
+Vibian started as one laptop. A stock Ubuntu install was turned into a fully custom /g/-style anime rice in about a day, entirely by prompting coding agents. That build had a Windows-style desk, drag-to-edge tiling, a VPN widget, a local image-gen app and an embedded agent with computer use. A second agent then picked up where the first left off by reading its change log. Vibian turns that into an OS.
+
+## License
+
+[GPL-3.0](LICENSE). Agent harnesses are installed from their official sources at onboarding and are never bundled; several are proprietary.
