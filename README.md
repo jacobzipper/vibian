@@ -36,8 +36,11 @@ vibian apply github:someone/their-rice     # their setup, rebuilt by your agent,
 | btrfs + snapper autoinstall layout | ✅ boots from `@`, apt snapshots work ([test](tests/vm/headless-install.sh)) |
 | grub-btrfs snapshot boot menu | ✅ packaged ([`packages/grub-btrfs`](packages/grub-btrfs)), menu fills in as snapshots are taken |
 | Booting a snapshot | ✅ pick it in GRUB → the system comes up as it was, in a RAM overlay ([`packages/vibian-base`](packages/vibian-base)) |
-| Onboarding TUI, `vibian` CLI, ledger | ⏳ |
-| 14 OS skills + computer-use MCP | ⏳ |
+| Onboarding TUI, `vibian` CLI, ledger | ✅ first boot lands in onboarding on tty1; `vibian snap/log/undo/doctor` and the git-backed ledger pass the VM test ([`cmd/vibian`](cmd/vibian)) |
+| Rollback | ✅ `vibian undo --to <n>`, even from a snapshot boot: the next boot runs the snapshot as `@`, and the old root is kept for 7 days |
+| Harness install from onboarding (7 agents) | 🚧 Claude Code, Codex and Gemini CLI flags verified against docs; VM install test next |
+| 4 of 14 OS skills | ✅ packages, drivers-hardware, recovery, displays ([`agent-kit`](agent-kit)) |
+| Remaining 10 OS skills + computer-use MCP | ⏳ |
 | 10 desktop playbooks | ⏳ |
 | Examples (Bloomberg desk, startup mission control, grandma mode) | ⏳ |
 

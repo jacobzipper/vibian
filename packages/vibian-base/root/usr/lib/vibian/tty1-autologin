@@ -1,0 +1,7 @@
+#!/bin/sh
+# agetty wrapper for tty1 until onboarding is done: log in the machine's
+# first sudo user. The installer adds the drop-in that calls this; onboarding
+# removes it.
+user=$(getent group sudo | cut -d: -f4 | cut -d, -f1)
+[ -n "$user" ] || exec /sbin/agetty --noclear "$1" "$2"
+exec /sbin/agetty --autologin "$user" --noclear "$1" "$2"

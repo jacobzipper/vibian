@@ -1,0 +1,11 @@
+[Unit]
+Description=Delete old root subvolumes set aside by vibian undo --to
+ConditionKernelCommandLine=!rd.overlay
+After=local-fs.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/vibian undo --cleanup
+
+[Install]
+WantedBy=multi-user.target

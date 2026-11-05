@@ -8,6 +8,7 @@
 #   @var_log     /var/log           @var_cache       /var/cache
 #   @var_lib_docker  /var/lib/docker
 #   @var_lib_libvirt /var/lib/libvirt
+#   @var_lib_vibian  /var/lib/vibian  (the ledger: undo and rollback never rewind it)
 #
 # Curtin can't create subvolumes itself (spike S1), hence this script.
 set -euxo pipefail
@@ -34,6 +35,7 @@ subvols=(
   "@var_cache:/var/cache"
   "@var_lib_docker:/var/lib/docker"
   "@var_lib_libvirt:/var/lib/libvirt"
+  "@var_lib_vibian:/var/lib/vibian"
   "@snapshots:/.snapshots"
   "@home_snapshots:/home/.snapshots"
 )
@@ -48,6 +50,8 @@ for entry in "${subvols[@]}"; do
 done
 # @home_snapshots is mounted inside /home, so its mount point lives in @home
 mkdir -p "$top/@home/.snapshots"
+# the ledger is shared by the user's agents: group sudo may append
+install -d -m 2775 -g "$(chroot "$top/@" getent group sudo | cut -d: -f3)" "$top/@var_lib_vibian/ledger"
 
 # fstab: replace curtin's root line, keep everything else (ESP, swap)
 fstab="$top/@/etc/fstab"
@@ -78,6 +82,16 @@ if compgen -G "$pool/*.deb" >/dev/null; then
   cp "$pool"/*.deb "$r/tmp/vibian-pool/"
   chroot "$r" sh -c 'dpkg -i /tmp/vibian-pool/*.deb'
   rm -rf "$r/tmp/vibian-pool"
+fi
+
+# tty1 logs straight in to onboarding until it's done (vibian onboard removes this)
+if [ -x "$r/usr/lib/vibian/tty1-autologin" ]; then
+  mkdir -p "$r/etc/systemd/system/getty@tty1.service.d"
+  cat > "$r/etc/systemd/system/getty@tty1.service.d/vibian-onboard.conf" <<'EOF'
+[Service]
+ExecStart=
+ExecStart=-/usr/lib/vibian/tty1-autologin %I $TERM
+EOF
 fi
 
 chroot "$r" update-grub

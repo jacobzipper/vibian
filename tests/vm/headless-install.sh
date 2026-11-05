@@ -34,8 +34,14 @@ timeout "${INSTALL_TIMEOUT:-4h}" "${qemu[@]}" -cdrom "$iso" -boot d \
   -serial chardev:s0 -pidfile install.pid
 echo "== installer exited $(date -u +%T)"
 
+# the QEMU monitor is how the test sees the screen and presses keys
+mon() { echo "$1" | socat -t 1 - UNIX-CONNECT:mon.sock >/dev/null; }
+press() { local k=$1 n=${2:-1}; for _ in $(seq 1 "$n"); do mon "sendkey $k"; sleep 0.4; done; }
+boot() { "${qemu[@]}" -serial "file:$1" -monitor unix:mon.sock,server=on,wait=off -daemonize -pidfile vm.pid; }
+wait_off() { for _ in $(seq 1 60); do [ -e vm.pid ] && kill -0 "$(cat vm.pid)" 2>/dev/null || break; sleep 2; done; }
+
 echo "== first boot"
-"${qemu[@]}" -serial file:boot.serial.log -daemonize -pidfile vm.pid
+boot boot.serial.log
 trap 'kill "$(cat vm.pid)" 2>/dev/null; true' EXIT TERM INT
 
 ssh_vm() {
@@ -73,6 +79,35 @@ for want in 'grub-btrfsd=active' 'grub-cfg-hooks=[1-9]' 'grub-snapshot-entries=[
 done
 [ $fail = 0 ] || { echo "VM-TEST-FAIL"; exit 1; }
 
+# The vibian CLI: tty1 autologin into onboarding, doctor, and a snap → change
+# → log → undo round trip.
+echo "== vibian cli"
+mon "screendump $PWD/onboard.ppm"
+ssh_vm 'set -x
+  s() { echo vibian | sudo -S -p "" "$@"; }
+  vibian version
+  echo "tty1=$(ps -t tty1 -o comm= | tr "\n" " ")"
+  s vibian powers root
+  echo "nopasswd=$(sudo -n true 2>/dev/null && echo yes || echo no)"
+  vibian doctor || true
+  vibian doctor --json | python3 -c "import json,sys; c={x[\"id\"]: x[\"status\"] for x in json.load(sys.stdin)}; print(\"doctor-rootfs=\" + c[\"rootfs\"]); print(\"doctor-snapper=\" + c[\"snapper\"])"
+  echo "ledger-subvol=$(findmnt -no OPTIONS /var/lib/vibian | grep -o "subvol=[^,]*")"
+  test -f /usr/share/vibian/agent/skills/recovery/SKILL.md && echo kit=ok
+  vibian snap "cli test"
+  sudo touch /etc/vibian-cli-test
+  touch ~/cli-test
+  vibian log add "cli test change" --files /etc/vibian-cli-test,~/cli-test --gotcha "only a test"
+  vibian log tail
+  vibian undo --last --yes
+  echo "undo-root=$(test -e /etc/vibian-cli-test && echo kept || echo reverted)"
+  echo "undo-home=$(test -e ~/cli-test && echo kept || echo reverted)"
+  vibian log tail 1' 2>&1 | tee cli.log
+for want in 'tty1=.*vibian' 'nopasswd=yes' 'doctor-rootfs=ok' 'doctor-snapper=ok' 'ledger-subvol=subvol=/@var_lib_vibian' 'kit=ok' \
+            'L-0001 recorded \(snapshots root' 'undo-root=reverted' 'undo-home=reverted' 'undo L-0001'; do
+  grep -qE -- "$want" cli.log || { echo "MISSING (cli): $want"; fail=1; }
+done
+[ $fail = 0 ] || { echo "VM-TEST-FAIL"; exit 1; }
+
 # Snapshot boot: take a snapshot, break the system, then pick the snapshot in
 # the GRUB menu with the arrow keys (like a person would) and check we're back
 # in the pre-break state.
@@ -89,14 +124,12 @@ ssh_vm 'set -x
     /^(menuentry|submenu) /{i++; in_snap=index(\$0,p)>0; j=0; if (in_snap) print \"snap-pos=\" i-1}
     in_snap && /^    menuentry /{j++; if (index(\$0,k)) print \"kernel-pos=\" j}" /boot/grub/grub-btrfs.cfg
   s systemctl poweroff' 2>&1 | tee snapshot.log || true
-for _ in $(seq 1 60); do [ -e vm.pid ] && kill -0 "$(cat vm.pid)" 2>/dev/null || break; sleep 2; done
+wait_off
 snap_pos=$(sed -n 's/^snap-pos=//p' snapshot.log | head -1)
 kernel_pos=$(sed -n 's/^kernel-pos=//p' snapshot.log | head -1)
 echo "snapshot at menu position ${snap_pos:-?}, kernel at ${kernel_pos:-?}"
 
-"${qemu[@]}" -serial file:snapshot.serial.log -monitor unix:mon.sock,server=on,wait=off -daemonize -pidfile vm.pid
-mon() { echo "$1" | socat -t 1 - UNIX-CONNECT:mon.sock >/dev/null; }
-press() { local k=$1 n=${2:-1}; for _ in $(seq 1 "$n"); do mon "sendkey $k"; sleep 0.4; done; }
+boot snapshot.serial.log
 # "End" is harmless until GRUB shows up and then stops the countdown on the
 # last entry, which is the snapshots submenu
 wait_s=10; [ "$accel" = kvm ] || wait_s=120
@@ -117,5 +150,28 @@ ssh_vm 'set -x
 
 for want in 'snapshot-menu=[1-9]' 'snap-pos=[0-9]' 'kernel-pos=[0-9]' 'subvol=@snapshots/' 'root-fs=overlay' 'broken-marker=gone' 'cowsay=present' 'root-writable=yes' 'system-state=running'; do
   grep -qE -- "$want" snapshot.log || { echo "MISSING (snapshot boot): $want"; fail=1; }
+done
+[ $fail = 0 ] || { echo "VM-TEST-FAIL"; exit 1; }
+
+# Keep it: from the snapshot boot, make the snapshot the system, then boot
+# normally and check the pre-break state stuck.
+echo "== rollback"
+snap_n=$(grep -o '@snapshots/[0-9]*/snapshot' snapshot.log | head -1 | cut -d/ -f2)
+ssh_vm "set -x
+  vibian undo --to $snap_n --yes
+  vibian log tail 1
+  sudo systemctl poweroff" 2>&1 | tee rollback.log || true
+wait_off
+boot rollback.serial.log
+for _ in $(seq 1 60); do ssh_vm true 2>/dev/null && break; sleep 5; done
+ssh_vm 'set -x
+  cat /proc/cmdline
+  echo "root-subvol=$(findmnt -no OPTIONS / | grep -o "subvol=[^,]*")"
+  echo "broken-marker=$(test -e /etc/vibian-broken && echo present || echo gone)"
+  echo "cowsay=$(test -x /usr/games/cowsay && echo present || echo gone)"
+  sudo btrfs subvolume list / | grep -E "@rollback-|[0-9] path @$"
+  echo "system-state=$(systemctl is-system-running --wait)"' 2>&1 | tee -a rollback.log
+for want in 'roll back / to snapshot' 'root-subvol=subvol=/@$' 'broken-marker=gone' 'cowsay=present' 'path @rollback-' 'system-state=running'; do
+  grep -qE -- "$want" rollback.log || { echo "MISSING (rollback): $want"; fail=1; }
 done
 [ $fail = 0 ] && echo "VM-TEST-PASS" || { echo "VM-TEST-FAIL"; exit 1; }
