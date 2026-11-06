@@ -148,6 +148,7 @@ func runAgent(cfg harness.Config, prompt string) error {
 	runErr := run(c)
 
 	if pre != nil {
+		endTurns(h)
 		post, err := snap.Post(pre, "agent session: "+h.Name)
 		if err == nil && changed(pre, post, sessionNoise(h, home)) {
 			after, _ := ledger.All()
@@ -192,10 +193,10 @@ func changed(pre, post snap.Set, noise []string) bool {
 }
 
 // sessionNoise is what every session changes without anyone asking: the
-// harness's own state, caches, systemd's private tmp dirs, and the GRUB
+// harness's own state, Vibian's, caches, systemd's private tmp dirs, and the GRUB
 // snapshot menu grub-btrfsd rewrites when the session snapshot appears.
 func sessionNoise(h harness.Harness, home string) []string {
-	noise := []string{"/tmp", "/var/tmp", filepath.Join(home, ".cache"), filepath.Join(home, ".config/vibian"),
+	noise := []string{"/tmp", "/var/tmp", filepath.Join(home, ".cache"), filepath.Join(home, ".config/vibian"), filepath.Join(home, ".local/state/vibian"),
 		"/boot/grub/grub-btrfs.cfg", "/boot/grub/grub-btrfs.cfg.bkp", "/boot/grub/grub-btrfs.new"}
 	for _, d := range h.StateDirs {
 		noise = append(noise, filepath.Join(home, d))
@@ -203,9 +204,12 @@ func sessionNoise(h harness.Harness, home string) []string {
 	return noise
 }
 
+// under reports whether path is in one of dirs, or is a parent of one: the
+// first session creates ~/.local/state just to hold Vibian's state, and
+// anything else put there shows up as its own path.
 func under(path string, dirs []string) bool {
 	for _, d := range dirs {
-		if path == d || strings.HasPrefix(path, d+"/") {
+		if path == d || strings.HasPrefix(path, d+"/") || strings.HasPrefix(d, path+"/") {
 			return true
 		}
 	}

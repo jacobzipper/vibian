@@ -129,7 +129,7 @@ The demo moment is the first 90 seconds after hand-off: a black terminal turns i
 - `grub-btrfs` + `grub-btrfsd` put a "Vibian snapshots" submenu in GRUB. Booting a snapshot is read-only, and `vibian undo --to <id>` makes it permanent.
 - **Agent snapshots** happen three ways:
   1. `vibian agent` (the launcher every harness goes through) takes a pre snapshot at session start and a post snapshot at exit.
-  2. Harnesses with hooks (Claude Code, Codex, Gemini CLI, opencode, OpenClaw) add per-turn snapshots of root and home with a 5-minute debounce, so snapshots don't pile up.
+  2. Every harness also runs `vibian hook turn-start` / `turn-end` around each user turn (hooks, plugins or extensions that `vibian agent` writes; Codex reads managed hooks from `/etc/codex/requirements.toml`). A turn that changed nothing outside the harness's own state keeps no snapshot: its post is deleted and the pre carries over to the next turn. Kept pairs are at least 5 minutes apart, so snapshots don't pile up. State is in `~/.local/state/vibian/turn.json`, and the session end closes whatever is open.
   3. Skills tell the agent to run `vibian snap "<why>"` before anything risky.
 - **Spike S1 (first):** subiquity/curtin may not create btrfs subvolumes natively. Option (a) is a curtin storage config plus late-commands that create the subvolumes and move the data. Option (b) is our own tiny installer step that runs before subiquity. Decide after a VM test. **Result (2026-11-05): option (a).** `iso/btrfs-layout.sh` snapshots the fresh install into `@`, splits out the other subvolumes with reflink copies, rewrites fstab and the ESP GRUB stub, and creates the snapper configs. A KVM install from the remastered ISO passes `tests/vm/headless-install.sh`: the system boots from `/@`, and apt makes pre/post snapshots. `grub-btrfs` is in neither Ubuntu 26.04 nor Debian, so `packages/grub-btrfs/build-deb.sh` builds a .deb from a pinned upstream release. The ISO carries it in `/vibian/pool`, and the VM test checks that `grub-btrfsd` runs and that the snapshot submenu fills in. **Booting a snapshot** works the same way on 26.04, which uses dracut (not initramfs-tools): `vibian-base` adds dracut's `overlayfs` module and grub-btrfs adds `rd.overlay=1` to snapshot entries, so the read-only snapshot boots with a tmpfs upper layer. Drop-ins skip snapper-boot, the snapper timers and GRUB's boot-success units on such boots, so the system reports `running`. The VM test takes a snapshot, breaks the system, picks the snapshot in the GRUB menu with arrow keys via the QEMU monitor, and checks the pre-break state is back.
 
@@ -179,17 +179,17 @@ vibian powers [root|confirm|scoped]    # change the privilege mode later
   - `vibian-computer`: a generalisation of the laptop's `nhk-computer`. Tools: screenshot (region/scale), windows, focus_window, click/drag/scroll, type_text, key.
     - Backends: wlroots (Hyprland/Sway/niri) via grim + virtual pointer + wtype; KDE via the KWin scripting/portal screenshot; X11 via xdotool + maim; a uinput fallback for buttons and the wheel.
     - GNOME Wayland is the hard one: screenshots go through the portal, input through uinput (ydotool-style).
-  - `vibian-system` (small): read-only facts (`vibian doctor` JSON, the hardware inventory, the ledger search) so even weak local models get structured context.
+  - `vibian-system` (small, `vibian mcp`): `doctor` JSON, the hardware inventory, ledger search/tail/show, plus `snapshot` and `ledger_add` so the three rules work as tool calls. Structured context even weak local models can use. `vibian agent` registers it in every harness (opencode reads it from `/etc/opencode/opencode.json`).
 - **Harness adapters** (installed by `vibian agent set <h>`). Verified against each harness's docs and source on 2026-11-05; details and sources are in `docs/research/harness-adapters.md`.
 
   | harness | licence | user instructions | skills dir | MCP | per-turn hooks (pre → post) | headless login |
   |---|---|---|---|---|---|---|
   | Claude Code | proprietary | `~/.claude/CLAUDE.md` → `@/usr/share/vibian/agent/AGENTS.md` | `~/.claude/skills` | `claude mcp add -s user` | `UserPromptSubmit` → `Stop` | `claude setup-token` / API key |
-  | Codex CLI | Apache-2.0 | `~/.codex/AGENTS.md` | `~/.agents/skills` | `codex mcp add` | `UserPromptSubmit` → `Stop` (needs managed hooks or hook trust) | `codex login --device-auth` / API key |
-  | Gemini CLI | Apache-2.0 | `~/.gemini/GEMINI.md` + `context.fileName` | `~/.agents/skills` | `gemini mcp add --scope user` | `BeforeAgent` → `AfterAgent` | `NO_BROWSER=true` paste-code / API key |
-  | opencode (v2) | MIT | `~/.config/opencode/AGENTS.md` | `~/.agents/skills` | `opencode mcp add --global` | plugin `session.hook("prompt")` → launcher | `opencode auth login` |
-  | OpenClaw | MIT | `~/.openclaw/workspace/AGENTS.md` | `~/.agents/skills` | `openclaw mcp add` | plugin `before_agent_run` → `agent_end` | paste-code / setup-token / API key |
-  | pi | MIT | `~/.pi/agent/AGENTS.md` | `~/.agents/skills` | `pi mcp add` | extension `turn_start` → `turn_end` | `/login` paste-back / API key |
+  | Codex CLI | Apache-2.0 | `~/.codex/AGENTS.md` | `~/.agents/skills` | `codex mcp add` | `UserPromptSubmit` → `Stop` (managed, in `/etc/codex/requirements.toml`) | `codex login --device-auth` / API key |
+  | Gemini CLI | Apache-2.0 | `~/.gemini/GEMINI.md` + `context.fileName` | `~/.agents/skills` | `gemini mcp add --scope user` | `BeforeAgent` → `AfterAgent` (trusted folders only) | `NO_BROWSER=true` paste-code / API key |
+  | opencode (v2) | MIT | `~/.config/opencode/AGENTS.md` | `~/.agents/skills` | `opencode mcp add --global` | plugin `session.hook("prompt")` → `session.execution.*` event (`~/.config/opencode/plugins/vibian.ts`) | `opencode auth login` |
+  | OpenClaw | MIT | `~/.openclaw/workspace/AGENTS.md` | `~/.agents/skills` | `openclaw mcp add` | plugin `before_agent_run` → `agent_end` (`/usr/lib/vibian/openclaw`, linked once, needs `allowConversationAccess`) | paste-code / setup-token / API key |
+  | pi | MIT | `~/.pi/agent/AGENTS.md` | `~/.agents/skills` | `pi mcp add` | extension `before_agent_start` (user messages) → `agent_settled` | `/login` paste-back / API key |
   | Cursor CLI | proprietary | none on disk → launcher passes the brief | `~/.agents/skills` | `~/.cursor/mcp.json` | `beforeSubmitPrompt` → `stop` (CLI coverage partial) | `NO_OPEN_BROWSER=1 agent login` / API key |
   | local (exp.) | — | via opencode or pi + Ollama | same | same | same | none |
 

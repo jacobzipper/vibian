@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/jacobzipper/vibian/internal/sys"
 )
@@ -162,4 +163,53 @@ func List(config string) ([]Snapshot, error) {
 		return nil, err
 	}
 	return raw[config], nil
+}
+
+// Delete removes a snapshot set.
+func Delete(s Set) error {
+	for _, c := range Configs {
+		if n, ok := s[c]; ok {
+			if _, err := sys.Output("snapper", "-c", c, "delete", strconv.Itoa(n)); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// Turn is the per-turn snapshot state the harness hooks share.
+type Turn struct {
+	// Pre is the open pre snapshot set, if any.
+	Pre Set `json:"pre,omitempty"`
+	// Desc is Pre's description, which its post gets too.
+	Desc string `json:"desc,omitempty"`
+	// Clean means a turn ended without changes since Pre, so the next turn
+	// reuses it.
+	Clean bool `json:"clean,omitempty"`
+	// Kept is when the last pair that changed something was kept.
+	Kept time.Time `json:"kept,omitempty"`
+}
+
+func turnPath() string {
+	return filepath.Join(filepath.Dir(pendingPath()), "turn.json")
+}
+
+// LoadTurn reads the turn state. A missing file is a zero Turn.
+func LoadTurn() Turn {
+	var t Turn
+	b, err := os.ReadFile(turnPath())
+	if err == nil {
+		json.Unmarshal(b, &t)
+	}
+	return t
+}
+
+// SaveTurn writes the turn state.
+func SaveTurn(t Turn) error {
+	path := turnPath()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	b, _ := json.Marshal(t)
+	return os.WriteFile(path, b, 0o644)
 }

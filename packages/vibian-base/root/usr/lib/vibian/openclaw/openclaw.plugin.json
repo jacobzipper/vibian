@@ -1,0 +1,7 @@
+{
+  "id": "vibian",
+  "name": "Vibian",
+  "description": "Snapshots the system around each agent turn (vibian hook).",
+  "activation": { "onStartup": true },
+  "configSchema": { "type": "object", "additionalProperties": false }
+}

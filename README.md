@@ -43,6 +43,8 @@ vibian apply github:someone/their-rice     # their setup, rebuilt by your agent,
 | Vibian login banner | ✅ replaces Ubuntu's welcome and "minimized" text on tty1 and ssh, moved aside so removing `vibian-base` brings them back |
 | 12 of 14 OS skills | ✅ packages, drivers-hardware, displays, networking, audio-bluetooth, power, users-security, services, recovery, gaming, local-ai, dev-env ([`agent-kit`](agent-kit)) |
 | Wifi in onboarding | ✅ NetworkManager; pick a network and type its password on the Network step |
+| `vibian-system` MCP server | ✅ `vibian mcp`: doctor, hardware, ledger and snapshot tools, registered in all 7 harnesses' configs |
+| Per-turn snapshots | ✅ `vibian hook` keeps a root+home pair for each agent turn that changed something (at most one per 5 min); hooks or plugins for all 7 harnesses |
 | computer-use and export-apply skills, desktop-playbooks, computer-use MCP | ⏳ |
 | 10 desktop playbooks | ⏳ |
 | Examples (Bloomberg desk, startup mission control, grandma mode) | ⏳ |

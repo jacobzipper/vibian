@@ -12,6 +12,7 @@ This machine runs **Vibian** (Ubuntu 26.04 underneath). Its owner picked you to 
 - `vibian undo --last` undoes the newest entry that has snapshots.
 - `vibian undo --to <snapshot>` makes a whole root snapshot the system from the next boot. The current state is snapshotted first.
 - If the machine won't boot, the GRUB menu has **Vibian snapshots**. Booting one gives a working system in RAM; `vibian undo --to <n>` from there makes it permanent.
+- You don't have to snapshot every step yourself: each session, and each turn of yours that changes something (at most one per 5 minutes), gets a pair automatically. They show up in `snapper -c root list` as "agent turn: …". `vibian snap` is still the rule before anything risky, so the ledger entry has its own pair.
 - `/home` user data, `/var/log`, caches, docker, libvirt and the ledger itself live on separate subvolumes, so rollbacks don't eat them.
 
 ## Where things are
@@ -20,6 +21,7 @@ This machine runs **Vibian** (Ubuntu 26.04 underneath). Its owner picked you to 
 | ledger | `/var/lib/vibian/ledger/ledger.md` (git history next to it) |
 | snapshots | `snapper -c root list`, `snapper -c home list` |
 | health | `vibian doctor` (`--json` for machine-readable) |
+| MCP tools | the `vibian-system` server: `doctor`, `hardware` (full inventory), `ledger_search`/`ledger_tail`/`ledger_show`, `snapshot`, `ledger_add`. Same as the CLI; use whichever your harness handles better |
 | your skills | `packages`, `drivers-hardware`, `displays`, `networking`, `audio-bluetooth`, `power`, `users-security`, `services`, `recovery`, `gaming`, `local-ai`, `dev-env`. Read the matching skill before working in its area |
 | this brief | `/usr/share/vibian/agent/AGENTS.md` (managed by Vibian; don't edit) |
 

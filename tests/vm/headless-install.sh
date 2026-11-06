@@ -125,10 +125,23 @@ ssh_vm 'set -x
   vibian undo --last --yes
   echo "undo-root=$(test -e /etc/vibian-cli-test && echo kept || echo reverted)"
   echo "undo-home=$(test -e ~/cli-test && echo kept || echo reverted)"
-  vibian log tail 1' 2>&1 | tee cli.log
+  vibian log tail 1
+  # per-turn snapshots, run the way harness hooks run them: a turn that
+  # changes nothing keeps only its open pre, the next one that does keeps a
+  # pair, and one right after is debounced. Hooks never print to stdout.
+  turns() { s snapper -c root list | grep -c "agent turn: Claude Code"; }
+  t0=$(turns)
+  { vibian hook turn-start --agent claude; vibian hook turn-end --agent claude; } >/tmp/turn.out
+  echo "turn-clean=$(( $(turns) - t0 ))"
+  { vibian hook turn-start --agent claude; sudo touch /etc/vibian-turn-test; vibian hook turn-end --agent claude; } >>/tmp/turn.out
+  echo "turn-kept=$(( $(turns) - t0 ))"
+  { vibian hook turn-start --agent claude; sudo rm /etc/vibian-turn-test; vibian hook turn-end --agent claude; } >>/tmp/turn.out
+  echo "turn-debounced=$(( $(turns) - t0 )) stdout=$(wc -c </tmp/turn.out)"
+  rm -f /tmp/turn.out' 2>&1 | tee cli.log
 for want in 'tty1=.*vibian' 'nopasswd=yes' 'doctor-rootfs=ok' 'doctor-snapper=ok' 'ledger-subvol=subvol=/@var_lib_vibian' 'kit=ok' \
             'motd=/etc/update-motd.d/00-vibian /etc/update-motd.d/9' 'issue=Vibian' 'nm-wired=ethernet:connected' 'wifi=\(connected\)|wifi=no-hwsim' \
             'mcp-tools=7' 'mcp-ledger=.*cli test change' \
+            'turn-clean=1$' 'turn-kept=2$' 'turn-debounced=2 stdout=0$' \
             'L-0001 recorded \(snapshots root' 'undo-root=reverted' 'undo-home=reverted' 'undo L-0001'; do
   grep -qE -- "$want" cli.log || { echo "MISSING (cli): $want"; fail=1; }
 done

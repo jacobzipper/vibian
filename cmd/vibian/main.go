@@ -21,6 +21,7 @@ const usage = `vibian: an OS run by your coding agent
   vibian undo [<ledger-id>|--last|--to <snapshot>]
   vibian doctor [--json]              health check
   vibian mcp                          the vibian-system MCP server (stdio)
+  vibian hook turn-start|turn-end     per-turn snapshots (harness hooks run this)
   vibian version
 `
 
@@ -48,6 +49,8 @@ func main() {
 		err = cmdDoctor(args)
 	case "mcp":
 		err = cmdMCP(args)
+	case "hook":
+		err = cmdHook(args)
 	case "version", "--version":
 		fmt.Println("vibian", version)
 	case "help", "-h", "--help":
