@@ -75,10 +75,12 @@ var All = []Harness{
 		ID: "opencode", Name: "opencode", Vendor: "Anomaly", Licence: "MIT", Binary: "opencode",
 		Install:      "curl -fsSL https://opencode.ai/v2/install | bash",
 		Login:        []string{"opencode", "auth", "login"},
+		LoginHint:    "opencode has free models built in, so logging in to a provider is optional (Esc, then s, skips it).",
 		Instructions: ".config/opencode/AGENTS.md",
 		SkillDirs:    []string{agentsSkills},
 		PromptArgs:   func(p string) []string { return []string{"--prompt", p} },
-		Unverified:   true,
+		// its default agent already allows every tool, so powers=root needs
+		// no flag; powers=confirm needs a permission config (M2)
 	},
 	{
 		ID: "openclaw", Name: "OpenClaw", Vendor: "OpenClaw", Licence: "MIT", Binary: "openclaw",

@@ -70,6 +70,7 @@ type Model struct {
 	busy     string
 	err      error
 	powers   harness.Powers
+	noLogin  bool // login failed or was cancelled; s skips it
 	self     string
 	width    int
 	Result   Result
@@ -125,6 +126,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.step > stepWelcome {
 				m.step--
 				m.cursor, m.err = 0, nil
+			}
+		case "s":
+			if m.step == stepInstall && m.noLogin {
+				return m.afterExec(execMsg{"login", nil})
 			}
 		case "r":
 			if m.step == stepNetwork || m.step == stepHardware {
@@ -193,6 +198,14 @@ func (m Model) login() (tea.Model, tea.Cmd) {
 
 func (m Model) afterExec(msg execMsg) (tea.Model, tea.Cmd) {
 	m.busy = ""
+	m.noLogin = false
+	if msg.err != nil && msg.what == "login" {
+		// cancelling a provider picker isn't fatal: most harnesses can log
+		// in from inside the session too
+		m.noLogin = true
+		m.err = fmt.Errorf("login didn't finish (%v). enter: try again  ·  s: skip, log in later inside %s  ·  b: back", msg.err, m.harness.Name)
+		return m, nil
+	}
 	if msg.err != nil {
 		m.err = fmt.Errorf("%s failed: %v. Enter retries, b goes back", msg.what, msg.err)
 		if msg.what == "install" || msg.what == "login" {
@@ -285,7 +298,12 @@ func (m Model) View() string {
 		if m.busy != "" {
 			b.WriteString(m.spin.View() + " " + m.busy + "…\n")
 		} else {
-			b.WriteString("This runs the official installer:\n\n  " + dim.Render(m.harness.Install) + "\n")
+			installed := m.harness.Installed()
+			if installed {
+				b.WriteString(okStyle.Render("✓ installed") + "\n")
+			} else {
+				b.WriteString("This runs the official installer:\n\n  " + dim.Render(m.harness.Install) + "\n")
+			}
 			if m.harness.LoginCmd() == nil {
 				hint := m.harness.LoginHint
 				if hint == "" {
@@ -294,8 +312,15 @@ func (m Model) View() string {
 				b.WriteString("\n" + hint + "\n")
 			} else {
 				b.WriteString("\nThen its login (" + strings.Join(m.harness.Login, " ") + "). There's no browser yet,\nso open the link it shows on your phone.\n")
+				if m.harness.LoginHint != "" {
+					b.WriteString(dim.Render(m.harness.LoginHint) + "\n")
+				}
 			}
-			b.WriteString("\n" + dim.Render("enter: install  ·  b: back"))
+			if installed {
+				b.WriteString("\n" + dim.Render("enter: log in  ·  b: back"))
+			} else {
+				b.WriteString("\n" + dim.Render("enter: install  ·  b: back"))
+			}
 		}
 	case stepPowers:
 		b.WriteString(bold.Render("How much can "+m.harness.Name+" do?") + "\n\n")
