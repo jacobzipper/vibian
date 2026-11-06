@@ -17,11 +17,12 @@ pkgs=("${base[@]}" gdm3 gnome-shell gnome-control-center gnome-settings-daemon g
       pipewire-pulse wireplumber fonts-noto-core fonts-noto-color-emoji)
 [ "$apps" = standard ] && pkgs+=(gnome-tweaks gnome-shell-extension-manager gnome-calculator gnome-software)
 export DEBIAN_FRONTEND=noninteractive
-apt-get update -q
+# right after first boot, an apt job (locales, unattended-upgrades) may hold the lock
+apt-get -o DPkg::Lock::Timeout=300 update -q
 if [ "$apps" = minimal ]; then
-  apt-get install -y -q --no-install-recommends "${pkgs[@]}"
+  apt-get -o DPkg::Lock::Timeout=300 install -y -q --no-install-recommends "${pkgs[@]}"
 else
-  apt-get install -y -q "${pkgs[@]}"
+  apt-get -o DPkg::Lock::Timeout=300 install -y -q "${pkgs[@]}"
 fi
 
 # one login screen at a time: another desktop's may own display-manager.service

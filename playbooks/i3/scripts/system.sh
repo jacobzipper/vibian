@@ -17,8 +17,9 @@ pkgs=(xserver-xorg-core xserver-xorg-input-libinput xserver-xorg-video-all x11-x
 # startx as a normal user needs the Xorg wrapper
 [ "$login" = tty ] && pkgs+=(xserver-xorg-legacy)
 export DEBIAN_FRONTEND=noninteractive
-apt-get update -q
-apt-get install -y -q --no-install-recommends "${pkgs[@]}"
+# right after first boot, an apt job (locales, unattended-upgrades) may hold the lock
+apt-get -o DPkg::Lock::Timeout=300 update -q
+apt-get -o DPkg::Lock::Timeout=300 install -y -q --no-install-recommends "${pkgs[@]}"
 
 # Ubuntu enables these user services for every graphical session; a Wayland
 # desktop's bar would fail to start here anyway

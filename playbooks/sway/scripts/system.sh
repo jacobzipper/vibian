@@ -14,8 +14,9 @@ pkgs=(sway swayidle swaylock xdg-desktop-portal-wlr xdg-desktop-portal-gtk lxpol
       fonts-noto-core fonts-noto-color-emoji fonts-font-awesome qt6-wayland qtwayland5 "$term")
 [ "$login" = greetd ] && pkgs+=(greetd tuigreet)
 export DEBIAN_FRONTEND=noninteractive
-apt-get update -q
-apt-get install -y -q --no-install-recommends "${pkgs[@]}"
+# right after first boot, an apt job (locales, unattended-upgrades) may hold the lock
+apt-get -o DPkg::Lock::Timeout=300 update -q
+apt-get -o DPkg::Lock::Timeout=300 install -y -q --no-install-recommends "${pkgs[@]}"
 
 # Sway won't start on NVIDIA's proprietary driver without this flag
 session=sway

@@ -37,8 +37,9 @@ build=(rustc cargo clang gcc pkg-config curl xz-utils libudev-dev libgbm-dev lib
        libpipewire-0.3-dev libpango1.0-dev libdisplay-info-dev)
 [ "$xwl" = 1 ] && build+=(libxcb1-dev libxcb-cursor-dev)
 export DEBIAN_FRONTEND=noninteractive
-apt-get update -q
-apt-get install -y -q --no-install-recommends "${pkgs[@]}"
+# right after first boot, an apt job (locales, unattended-upgrades) may hold the lock
+apt-get -o DPkg::Lock::Timeout=300 update -q
+apt-get -o DPkg::Lock::Timeout=300 install -y -q --no-install-recommends "${pkgs[@]}"
 
 have() { "$1" --version 2>/dev/null | grep -qF " $2"; }
 need_niri=1; have /usr/local/bin/niri "$NIRI_VER" && need_niri=0
@@ -50,7 +51,7 @@ if [ $need_niri = 1 ] || [ $need_xwls = 1 ]; then
   # exactly that afterwards
   installed() { dpkg-query -W -f '${db:Status-Abbrev} ${Package}\n' | awk '$1 == "ii" {print $2}' | sort -u; }
   before=$(installed)
-  apt-get install -y -q --no-install-recommends "${build[@]}"
+  apt-get -o DPkg::Lock::Timeout=300 install -y -q --no-install-recommends "${build[@]}"
   new=$(comm -13 <(echo "$before") <(installed))
   work=$(mktemp -d /var/tmp/vibian-niri.XXXXXX)
   trap 'rm -rf "$work"' EXIT
@@ -107,7 +108,7 @@ T
     apt-mark auto $new >/dev/null
     [ -n "$runtime" ] && apt-mark manual $runtime >/dev/null
     gone=$(apt-get -s autoremove | awk '/^Remv / {sub(/:.*/, "", $2); print $2}' | sort -u | comm -12 - <(echo "$new"))
-    [ -n "$gone" ] && apt-get purge -y -q $gone
+    [ -n "$gone" ] && apt-get -o DPkg::Lock::Timeout=300 purge -y -q $gone
   elif [ -n "$runtime" ]; then
     apt-mark manual $runtime >/dev/null
   fi

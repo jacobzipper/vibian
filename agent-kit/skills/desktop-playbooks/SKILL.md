@@ -34,6 +34,7 @@ The scripts take their choices from `VIBIAN_*` environment variables (the knobs)
   - Sway: `~/.config/sway/config.d/`.
   - niri: `~/.config/niri/local.kdl` (run `niri validate` after editing).
   - i3: `~/.config/i3/config.d/` (run `i3 -C` to check, then SUPER+SHIFT+C to reload).
+  - XFCE: the Settings Manager, or `xfconf-query -c <channel> -p <property> -n -t <type> -s <value>`. Never edit the XML files under `~/.config/xfce4/xfconf/`: xfconfd overwrites them.
   - KDE Plasma: System Settings, or `kwriteconfig6`; never rewrite Plasma's rc files whole.
   - GNOME: Settings, or `gsettings`/`dconf` (a binary database, not files).
 - Switching desktops: run the new playbook. Its `system.sh` disables the other login screens, so only one is ever enabled. Remove the old desktop only if the user asks, with `vibian undo <ledger-id>` or the playbook's Undo section.

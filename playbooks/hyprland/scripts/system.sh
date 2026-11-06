@@ -14,8 +14,9 @@ pkgs=(hyprland xdg-desktop-portal-hyprland xdg-desktop-portal-gtk hyprlock hypri
       fonts-noto-core fonts-noto-color-emoji fonts-font-awesome qt6-wayland qtwayland5 "$term")
 [ "$login" = greetd ] && pkgs+=(greetd tuigreet)
 export DEBIAN_FRONTEND=noninteractive
-apt-get update -q
-apt-get install -y -q --no-install-recommends "${pkgs[@]}"
+# right after first boot, an apt job (locales, unattended-upgrades) may hold the lock
+apt-get -o DPkg::Lock::Timeout=300 update -q
+apt-get -o DPkg::Lock::Timeout=300 install -y -q --no-install-recommends "${pkgs[@]}"
 
 # Ubuntu enables these user services for every graphical session, so they
 # would also start inside Plasma or GNOME. This desktop's config starts them.
