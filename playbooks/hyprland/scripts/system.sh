@@ -17,7 +17,12 @@ export DEBIAN_FRONTEND=noninteractive
 apt-get update -q
 apt-get install -y -q --no-install-recommends "${pkgs[@]}"
 
+# Ubuntu enables these user services for every graphical session, so they
+# would also start inside Plasma or GNOME. This desktop's config starts them.
+systemctl --global disable -q waybar.service mako.service hypridle.service hyprpolkitagent.service 2>/dev/null || true
 if [ "$login" = greetd ]; then
+  # one login screen at a time: another desktop's may own display-manager.service
+  for dm in sddm gdm3 lightdm; do systemctl disable -q "$dm" 2>/dev/null || true; done
   install -d /etc/greetd
   [ -f /etc/greetd/config.toml ] && [ ! -f /etc/greetd/config.toml.vibian-bak ] && cp /etc/greetd/config.toml /etc/greetd/config.toml.vibian-bak
   greeter=$(getent passwd _greetd >/dev/null && echo _greetd || echo greeter)

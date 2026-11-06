@@ -254,6 +254,7 @@ vibian approve [<id>|--deny <id>]  # …the owner's OK (their own sudo password)
   - They ship in `vibian-base` under `/usr/share/vibian/playbooks/`. `vibian playbooks` lists them; `vibian playbooks show <id>` prints one.
   - The `desktop-playbooks` skill: pick one with the user, ask the interview in one message, run the steps by `vibian powers`, verify, log, then check the result with a `vibian-computer` screenshot.
   - Archive packages by default. A PPA (e.g. newer Hyprland) is opt-in and logged with the reason.
+  - One login screen at a time: each `system.sh` disables the other display managers (greetd, sddm, gdm3, lightdm) before enabling its own. The tiling playbooks also turn off Ubuntu's global user units for waybar, mako, hypridle and hyprpolkitagent, which would otherwise start inside Plasma or GNOME; their configs start these themselves.
 - v1 set: hyprland · kde-plasma · gnome · niri · sway · i3 · xfce · cosmic · quickshell-desk (the generalised NHK desk) · headless.
 - Themes are rices on top of playbooks. **`nhk`** is the first one: the flagship case study, scrubbed of personal bits.
 - **Remote-access playbook:** talk to your OS agent from your phone (OpenClaw channels, Tailscale ssh, a web UI).

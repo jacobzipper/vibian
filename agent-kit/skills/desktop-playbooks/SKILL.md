@@ -29,8 +29,11 @@ The scripts take their choices from `VIBIAN_*` environment variables (the knobs)
 
 ## Changing it later
 - Re-run `user.sh` with different knobs to change the accent, gaps, terminal or keyboard. It only rewrites its own files.
-- The user's own settings go in the file the playbook names for that (Hyprland: `~/.config/hypr/local.conf`), which re-runs never touch.
-- Switching desktops: run the new playbook. Remove the old one only if the user asks, with `vibian undo <ledger-id>` or the playbook's Undo section.
+- The user's own settings go where the playbook says, and re-runs never touch them:
+  - Hyprland: `~/.config/hypr/local.conf`.
+  - Sway: `~/.config/sway/config.d/`.
+  - KDE Plasma: System Settings, or `kwriteconfig6`; never rewrite Plasma's rc files whole.
+- Switching desktops: run the new playbook. Its `system.sh` disables the other login screens, so only one is ever enabled. Remove the old desktop only if the user asks, with `vibian undo <ledger-id>` or the playbook's Undo section.
 
 ## No playbook fits
 Do it by hand the same way: archive packages first, configs in `~/.config` with comments, a check you can run, a ledger entry. If it works well, offer to save it as a playbook (same layout, `status: untested`) under `~/.local/share/vibian/playbooks/<id>/` and point the user at `vibian export` to share it.

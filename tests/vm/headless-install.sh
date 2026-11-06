@@ -196,9 +196,10 @@ for want in 'set=0 mode=scoped' 'plain-sudo=no' 'plain=0 owner=root' 'nowhy=1' '
 done
 echo "== desktop playbooks"
 : > playbook.log
-for id in hyprland sway; do
+for id in hyprland sway kde-plasma; do
   ssh_vm "bash -s $id" < "$here/desktop-playbook.sh" 2>&1 | tee -a playbook.log
-  for want in 'listed=1' 'show=0' 'system=0' 'bad-knob=1' 'user=0' 'rerun=0 new-baks=0' 'verify=0' 'user-as-root=1' 'greeter=up vt=tty7'; do
+  greeter='greeter=up vt=tty7'; [ $id = kde-plasma ] && greeter='greeter=up'
+  for want in 'listed=1' 'show=0' 'system=0' 'bad-knob=1' 'user=0' 'rerun=0 new-baks=0' 'verify=0' 'user-as-root=1' "$greeter"; do
     grep -qE -- "^$id\.$want" playbook.log || { echo "MISSING (playbook $id): $want"; fail=1; }
   done
 done
