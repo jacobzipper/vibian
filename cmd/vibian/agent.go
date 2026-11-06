@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"os/user"
+	"path/filepath"
 	"strings"
 
 	"github.com/jacobzipper/vibian/internal/harness"
@@ -112,10 +113,21 @@ func runAgent(cfg harness.Config, prompt string) error {
 		fmt.Fprintln(os.Stderr, "vibian: couldn't update the agent's config:", err)
 	}
 
-	var argv []string
-	if cfg.Powers == harness.PowersRoot {
-		argv = append(argv, h.AutoFlags...)
+	if h.PowersCmd != nil && cfg.Applied[h.ID] != cfg.Powers {
+		c := exec.Command(bin, h.PowersCmd(cfg.Powers)...)
+		c.Env = harness.Env()
+		if out, err := c.CombinedOutput(); err != nil {
+			fmt.Fprintf(os.Stderr, "vibian: couldn't set %s's approvals to %s: %v\n%s", h.Name, cfg.Powers, err, out)
+		} else {
+			if cfg.Applied == nil {
+				cfg.Applied = map[string]harness.Powers{}
+			}
+			cfg.Applied[h.ID] = cfg.Powers
+			cfg.Save()
+		}
 	}
+
+	argv, env := h.LaunchArgs(cfg.Powers)
 	if prompt != "" && h.PromptArgs != nil {
 		argv = append(argv, h.PromptArgs(prompt)...)
 	}
@@ -132,12 +144,12 @@ func runAgent(cfg harness.Config, prompt string) error {
 	home, _ := os.UserHomeDir()
 	c := exec.Command(bin, argv...)
 	c.Dir = home
-	c.Env = harness.Env(append(h.LoginEnv, "VIBIAN_AGENT="+h.ID)...)
+	c.Env = harness.Env(append(env, "VIBIAN_AGENT="+h.ID)...)
 	runErr := run(c)
 
 	if pre != nil {
 		post, err := snap.Post(pre, "agent session: "+h.Name)
-		if err == nil && changed(pre, post) {
+		if err == nil && changed(pre, post, sessionNoise(h, home)) {
 			after, _ := ledger.All()
 			if len(after) == len(before) {
 				e, _ := ledger.Add(ledger.Entry{
@@ -157,8 +169,8 @@ func runAgent(cfg harness.Config, prompt string) error {
 	return runErr
 }
 
-// changed reports whether anything differs between the pairs.
-func changed(pre, post snap.Set) bool {
+// changed reports whether anything outside noise differs between the pairs.
+func changed(pre, post snap.Set, noise []string) bool {
 	for _, c := range snap.Configs {
 		a, okA := pre[c]
 		b, okB := post[c]
@@ -166,7 +178,34 @@ func changed(pre, post snap.Set) bool {
 			continue
 		}
 		out, err := sys.Output("snapper", "-c", c, "status", fmt.Sprintf("%d..%d", a, b))
-		if err == nil && strings.TrimSpace(out) != "" {
+		if err != nil {
+			continue
+		}
+		for _, ln := range strings.Split(out, "\n") {
+			// "c..... /path"
+			if _, path, ok := strings.Cut(strings.TrimSpace(ln), " "); ok && !under(path, noise) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// sessionNoise is what every session changes without anyone asking: the
+// harness's own state, caches, systemd's private tmp dirs, and the GRUB
+// snapshot menu grub-btrfsd rewrites when the session snapshot appears.
+func sessionNoise(h harness.Harness, home string) []string {
+	noise := []string{"/tmp", "/var/tmp", filepath.Join(home, ".cache"), filepath.Join(home, ".config/vibian"),
+		"/boot/grub/grub-btrfs.cfg", "/boot/grub/grub-btrfs.cfg.bkp", "/boot/grub/grub-btrfs.new"}
+	for _, d := range h.StateDirs {
+		noise = append(noise, filepath.Join(home, d))
+	}
+	return noise
+}
+
+func under(path string, dirs []string) bool {
+	for _, d := range dirs {
+		if path == d || strings.HasPrefix(path, d+"/") {
 			return true
 		}
 	}
@@ -206,6 +245,9 @@ func cmdPowers(args []string) error {
 		return err
 	}
 	fmt.Println("powers:", p)
+	if h, err := harness.Get(cfg.Harness); err == nil && p == harness.PowersConfirm && h.NoConfirm != "" {
+		fmt.Println(h.NoConfirm)
+	}
 	return nil
 }
 

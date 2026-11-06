@@ -33,9 +33,23 @@ type Harness struct {
 	SkillDirs []string
 	// AutoFlags put the harness in its no-prompts mode (powers = root).
 	AutoFlags []string
+	// ConfirmFlags and ConfirmEnv make it ask before acting (powers =
+	// confirm) when its default mode doesn't.
+	ConfirmFlags []string
+	ConfirmEnv   []string
+	// PowersCmd sets an approval policy the harness stores itself. It runs
+	// at launch whenever powers changed since it last ran.
+	PowersCmd func(p Powers) []string
+	// NoConfirm says what "ask first" can't do for a harness that has no
+	// approval prompts.
+	NoConfirm string
 	// PromptArgs starts an interactive session with a first message. Nil when
 	// a first message would fail because login happens inside the session.
 	PromptArgs func(prompt string) []string
+	// StateDirs hold the harness's own sessions, caches and databases,
+	// relative to $HOME. Changes there don't count as the session changing
+	// the system.
+	StateDirs []string
 	// Unverified marks paths taken from docs but not yet run in a VM.
 	Unverified bool
 }
@@ -50,6 +64,7 @@ var All = []Harness{
 		LoginHint:    "Claude Code asks you to log in when it starts. Open the link it shows on your phone.",
 		Instructions: ".claude/CLAUDE.md",
 		SkillDirs:    []string{".claude/skills"},
+		StateDirs:    []string{".claude", ".claude.json"},
 		AutoFlags:    []string{"--dangerously-skip-permissions"},
 		PromptArgs:   func(p string) []string { return []string{p} },
 	},
@@ -59,6 +74,7 @@ var All = []Harness{
 		Login:        []string{"codex", "login", "--device-auth"},
 		Instructions: ".codex/AGENTS.md",
 		SkillDirs:    []string{agentsSkills},
+		StateDirs:    []string{".codex"},
 		AutoFlags:    []string{"--dangerously-bypass-approvals-and-sandbox"},
 		PromptArgs:   func(p string) []string { return []string{p} },
 	},
@@ -68,6 +84,7 @@ var All = []Harness{
 		LoginEnv:     []string{"NO_BROWSER=true"},
 		Instructions: ".gemini/GEMINI.md",
 		SkillDirs:    []string{agentsSkills},
+		StateDirs:    []string{".gemini"},
 		AutoFlags:    []string{"--approval-mode=yolo"},
 		PromptArgs:   func(p string) []string { return []string{"-i", p} },
 	},
@@ -78,9 +95,15 @@ var All = []Harness{
 		LoginHint:    "opencode has free models built in, so logging in to a provider is optional (Esc, then s, skips it).",
 		Instructions: ".config/opencode/AGENTS.md",
 		SkillDirs:    []string{agentsSkills},
+		StateDirs:    []string{".local/share/opencode", ".local/state/opencode", ".opencode"},
+		AutoFlags:    []string{"--auto"},
+		// Its default agent allows every tool. The rules are appended after
+		// the user's opencode.jsonc, so they win over its allow rules, and
+		// --standalone keeps them out of the shared background server,
+		// which would otherwise keep the env of whoever started it.
+		ConfirmFlags: []string{"--standalone"},
+		ConfirmEnv:   []string{`OPENCODE_CONFIG_CONTENT={"permissions":[{"action":"shell","resource":"*","effect":"ask"},{"action":"edit","resource":"*","effect":"ask"}]}`},
 		PromptArgs:   func(p string) []string { return []string{"--prompt", p} },
-		// its default agent already allows every tool, so powers=root needs
-		// no flag; powers=confirm needs a permission config (M2)
 	},
 	{
 		ID: "openclaw", Name: "OpenClaw", Vendor: "OpenClaw", Licence: "MIT", Binary: "openclaw",
@@ -88,7 +111,16 @@ var All = []Harness{
 		Login:        []string{"openclaw", "onboard"},
 		Instructions: ".openclaw/workspace/AGENTS.md",
 		SkillDirs:    []string{agentsSkills},
+		StateDirs:    []string{".openclaw"},
 		PromptArgs:   func(p string) []string { return []string{"tui", "--message", p} },
+		// Its default runs commands without asking; both presets work
+		// offline and persist in ~/.openclaw/state.
+		PowersCmd: func(p Powers) []string {
+			if p == PowersConfirm {
+				return []string{"exec-policy", "preset", "cautious"}
+			}
+			return []string{"exec-policy", "preset", "yolo"}
+		},
 		// install and flags checked in the VM; the TUI needs the Gateway that
 		// `openclaw onboard` sets up, untested without a model account
 		Unverified: true,
@@ -102,6 +134,8 @@ var All = []Harness{
 		LoginHint:    "pi starts without a model: type /login and pick a provider, then say hi.",
 		Instructions: ".pi/agent/AGENTS.md",
 		SkillDirs:    []string{agentsSkills},
+		StateDirs:    []string{".pi"},
+		NoConfirm:    "pi has no approval prompts: it runs commands and edits files without asking. Only sudo asks for your password.",
 	},
 	{
 		ID: "cursor", Name: "Cursor CLI", Vendor: "Anysphere", Licence: "proprietary", Binary: "agent",
@@ -112,6 +146,7 @@ var All = []Harness{
 		// the working directory, and the launcher starts it in $HOME.
 		Instructions: "AGENTS.md",
 		SkillDirs:    []string{agentsSkills},
+		StateDirs:    []string{".cursor", ".local/share/cursor-agent"},
 		AutoFlags:    []string{"--force"},
 		PromptArgs:   func(p string) []string { return []string{p} },
 	},
@@ -170,6 +205,15 @@ func (h Harness) InstallCmd() *exec.Cmd {
 	cmd := exec.Command("bash", "-o", "pipefail", "-c", h.Install)
 	cmd.Env = Env()
 	return cmd
+}
+
+// LaunchArgs are the flags and extra env for a session with powers p.
+func (h Harness) LaunchArgs(p Powers) (argv, env []string) {
+	env = append(env, h.LoginEnv...)
+	if p == PowersConfirm {
+		return append(argv, h.ConfirmFlags...), append(env, h.ConfirmEnv...)
+	}
+	return append(argv, h.AutoFlags...), env
 }
 
 // LoginCmd returns the login command, or nil if login happens on first launch.

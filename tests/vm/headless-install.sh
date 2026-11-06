@@ -93,6 +93,8 @@ ssh_vm 'set -x
   vibian doctor --json | python3 -c "import json,sys; c={x[\"id\"]: x[\"status\"] for x in json.load(sys.stdin)}; print(\"doctor-rootfs=\" + c[\"rootfs\"]); print(\"doctor-snapper=\" + c[\"snapper\"])"
   echo "ledger-subvol=$(findmnt -no OPTIONS /var/lib/vibian | grep -o "subvol=[^,]*")"
   test -f /usr/share/vibian/agent/skills/recovery/SKILL.md && echo kit=ok
+  echo "motd=$(run-parts --lsbsysinit --test /etc/update-motd.d | tr "\n" " ")"
+  echo "issue=$(head -c 6 /etc/issue)"
   vibian snap "cli test"
   sudo touch /etc/vibian-cli-test
   touch ~/cli-test
@@ -103,6 +105,7 @@ ssh_vm 'set -x
   echo "undo-home=$(test -e ~/cli-test && echo kept || echo reverted)"
   vibian log tail 1' 2>&1 | tee cli.log
 for want in 'tty1=.*vibian' 'nopasswd=yes' 'doctor-rootfs=ok' 'doctor-snapper=ok' 'ledger-subvol=subvol=/@var_lib_vibian' 'kit=ok' \
+            'motd=/etc/update-motd.d/00-vibian /etc/update-motd.d/9' 'issue=Vibian' \
             'L-0001 recorded \(snapshots root' 'undo-root=reverted' 'undo-home=reverted' 'undo L-0001'; do
   grep -qE -- "$want" cli.log || { echo "MISSING (cli): $want"; fail=1; }
 done

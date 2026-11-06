@@ -1,0 +1,13 @@
+#!/bin/sh
+# Vibian's login banner. Ubuntu's 00-header, 10-help-text, 50-motd-news and
+# 60-unminimize are diverted to *.ubuntu by vibian-base, which run-parts skips.
+. /etc/os-release
+v=$(dpkg-query -W -f '${Version}' vibian-base 2>/dev/null)
+printf '\033[1;33mVibian\033[0m %s  ·  %s base  ·  %s\n\n' "$v" "$PRETTY_NAME" "$(uname -r)"
+cat <<'T'
+  vibian agent         start your agent
+  vibian log tail      what changed lately, and who changed it
+  vibian undo --last   put the last change back
+  vibian doctor        check this machine
+
+T

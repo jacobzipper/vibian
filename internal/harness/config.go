@@ -21,6 +21,8 @@ const (
 type Config struct {
 	Harness string `json:"harness"`
 	Powers  Powers `json:"powers"`
+	// Applied is the powers each harness's PowersCmd last set.
+	Applied map[string]Powers `json:"applied,omitempty"`
 }
 
 func configPath() string {

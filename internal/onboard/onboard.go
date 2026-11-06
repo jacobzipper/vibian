@@ -336,6 +336,9 @@ func (m Model) View() string {
 			}
 			b.WriteString(dim.Render(indent(o.desc, "    ")) + "\n\n")
 		}
+		if m.harness.NoConfirm != "" {
+			b.WriteString(warnSty.Render(m.harness.NoConfirm) + "\n\n")
+		}
 		b.WriteString(dim.Render("Change it later with `vibian powers`.  ↑/↓  ·  enter: choose"))
 	case stepHandoff:
 		b.WriteString(bold.Render("All set.") + "\n\n")
