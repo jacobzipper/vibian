@@ -89,7 +89,9 @@ var All = []Harness{
 		Instructions: ".openclaw/workspace/AGENTS.md",
 		SkillDirs:    []string{agentsSkills},
 		PromptArgs:   func(p string) []string { return []string{"tui", "--message", p} },
-		Unverified:   true,
+		// install and flags checked in the VM; the TUI needs the Gateway that
+		// `openclaw onboard` sets up, untested without a model account
+		Unverified: true,
 	},
 	{
 		ID: "pi", Name: "pi", Vendor: "Earendil", Licence: "MIT", Binary: "pi",
@@ -112,7 +114,6 @@ var All = []Harness{
 		SkillDirs:    []string{agentsSkills},
 		AutoFlags:    []string{"--force"},
 		PromptArgs:   func(p string) []string { return []string{p} },
-		Unverified:   true,
 	},
 }
 

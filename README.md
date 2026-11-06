@@ -38,7 +38,7 @@ vibian apply github:someone/their-rice     # their setup, rebuilt by your agent,
 | Booting a snapshot | ✅ pick it in GRUB → the system comes up as it was, in a RAM overlay ([`packages/vibian-base`](packages/vibian-base)) |
 | Onboarding TUI, `vibian` CLI, ledger | ✅ first boot lands in onboarding on tty1; `vibian snap/log/undo/doctor` and the git-backed ledger pass the VM test ([`cmd/vibian`](cmd/vibian)) |
 | Rollback | ✅ `vibian undo --to <n>`, even from a snapshot boot: the next boot runs the snapshot as `@`, and the old root is kept for 7 days |
-| Harness install from onboarding (7 agents) | 🚧 pi and opencode installed and handed over from onboarding in the VM, driven by keyboard ([`tests/vm/drive.sh`](tests/vm/drive.sh)); the other five next |
+| Harness install from onboarding (7 agents) | 🚧 pi and opencode installed and handed over from onboarding in the VM, driven by keyboard ([`tests/vm/drive.sh`](tests/vm/drive.sh)). All 7 official installers run unattended in the VM and every flag Vibian passes exists in their `--help`. Logging in to a real account is next |
 | 4 of 14 OS skills | ✅ packages, drivers-hardware, recovery, displays ([`agent-kit`](agent-kit)) |
 | Remaining 10 OS skills + computer-use MCP | ⏳ |
 | 10 desktop playbooks | ⏳ |
