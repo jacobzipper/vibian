@@ -142,11 +142,11 @@ vibian agent [run|set <harness>|list|login]   # launcher: snapshots, adapters, e
 vibian log add "summary" [--files …] [--pkgs …] [--undo "…"] [--gotcha "…"]
 vibian log [search <q>|show <id>|tail]
 vibian snap "why"                  # root+home snapshot pair, recorded in the ledger
-vibian undo [<ledger-id>|--to <snapshot>|--last]   # snapper undochange / rollback
-vibian history                     # ledger entries joined to their snapshots
+vibian undo [<ledger-id>|--last|--pair <n>|--to <snapshot>]   # snapper undochange / rollback
+vibian history [-n N] [--json]     # ledger entries joined to their snapshots, plus unlogged pairs
 vibian doctor                      # GPU/driver/SB/firmware/network/audio/snapper health, JSON too
-vibian export [--publish]          # machine → git repo (see 4.7)
-vibian apply <github:user/repo|path>   # hand a rice to your agent to replay
+vibian export [DIR] [--add PATH] [--publish]   # machine → git repo (see 4.7)
+vibian apply <github:user/repo|path> [--dry-run|--scripts-only]   # hand a rice to your agent to replay
 vibian playbooks [list|show <id>]
 vibian powers [root|confirm|scoped]    # change the privilege mode later
 ```
@@ -221,15 +221,23 @@ vibian powers [root|confirm|scoped]    # change the privilege mode later
 - This is the laptop lesson made into a product: the ledger is what let a second agent take over from the first.
 
 ### 4.7 Export and apply ("a rice you install with one prompt")
-- `vibian export` writes a repo:
-  - `vibian.yaml`: base version, playbook ids, packages (apt/flatpak), enabled services, hardware assumptions
-  - `dotfiles/`: tracked config paths
+- `vibian export [DIR]` (default `~/vibian-rice`) writes a git repo. Re-running it refreshes the generated parts and keeps `RICE.md`, `scripts/` and `screenshots/`:
+  - `vibian.yaml`: name, base, playbook ids (detected from installed desktops), apt/flatpak/snap packages, enabled services that aren't on by default, the dotfile and system paths, and the hardware it was made on. It's a flat YAML subset that the CLI reads and writes without a library.
+    - **Apt packages:** apt history after the install plus the ledger's `pkgs`, kept only if they're still marked manual.
+  - `dotfiles/`: the usual rice configs that exist (compositor, bar, launcher, notifications, terminal, shell, prompt, editor, GTK/Qt theme, user units), every home path in the ledger's `files`, and `--add` paths. Files over 1 MiB and binaries other than images are skipped.
+  - `system/`: third-party apt sources and their keys, custom unit files, and the ledger's `/etc` and `/usr/local` paths
   - `scripts/`
-  - `RICE.md`: a prompt-ready narrative for an agent: what this setup is and how to rebuild it, adapting to different monitors and GPUs
+  - `RICE.md`: a prompt-ready narrative for an agent: what this setup is and how to rebuild it, adapting to different monitors and GPUs. The export writes the agent steps, the hardware and the ledger summaries; the user and their agent write the top.
   - `ledger/`: scrubbed
-  - `screenshots/`
-- Before anything leaves the machine, **gitleaks + a deny-list** (tokens, `.env`, ssh keys, browser profiles, Mullvad account numbers) runs. `--publish` creates the GitHub repo with topic `vibian-rice`.
-- `vibian apply github:jacobzipper/nhk-rice` fetches it, shows a summary and diff of what it would install, then hands `RICE.md` to *your* agent, so the replay adapts to *your* hardware. A deterministic `--scripts-only` mode exists for identical machines.
+  - `screenshots/`: `grim` takes one on wlroots if there isn't one
+- Before anything is committed, three layers run:
+  1. A **deny-list** drops paths: keys, `.env*`, ssh/gnupg, browser profiles, cloud and harness logins, shell history, VPN accounts, NetworkManager connections.
+  2. A **scrub** redacts tokens, `password =`/`*_TOKEN=` values, private key blocks and 16-digit (Mullvad-style) account numbers in the files that stay.
+  3. **gitleaks** scans the result and blocks the commit on any finding.
+  - `--publish` requires gitleaks. It asks, then `gh repo create --public` with topic `vibian-rice`.
+- `vibian apply github:jacobzipper/nhk-rice` clones it to `~/.local/share/vibian/rices/` and prints a plan: packages to install, files new and overwritten, services, scripts, and the source hardware. Then it starts *your* agent with the plan and the `export-apply` skill, so the replay adapts to *your* hardware and asks before overwriting your files.
+  - `--dry-run` only prints the plan.
+  - `--scripts-only` is the deterministic mode for identical machines. It copies system files and dotfiles, installs packages, enables services and runs `scripts/*.sh`, all between one snapshot pair with one ledger entry.
 - **Gallery:** the website's gallery is a static page built from GitHub topic `vibian-rice`. No backend needed. This is the growth loop: every shared rice is an ad for Vibian.
 
 ### 4.8 Desktop playbooks

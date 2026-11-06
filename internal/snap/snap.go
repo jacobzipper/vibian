@@ -148,6 +148,7 @@ func UndoChange(config string, from, to int) error {
 type Snapshot struct {
 	Number int    `json:"number"`
 	Type   string `json:"type"`
+	Pre    int    `json:"pre-number"`
 	Date   string `json:"date"`
 	Desc   string `json:"description"`
 }

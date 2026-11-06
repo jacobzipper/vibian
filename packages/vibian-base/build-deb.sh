@@ -25,6 +25,7 @@ Version: $VERSION
 Architecture: amd64
 Maintainer: Vibian <noreply@github.com>
 Depends: btrfs-progs, dracut, dracut-core, git, grub-btrfs, network-manager, polkitd, snapper, sudo
+Recommends: gitleaks
 Section: admin
 Priority: optional
 Homepage: https://github.com/jacobzipper/vibian

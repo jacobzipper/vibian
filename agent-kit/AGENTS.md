@@ -21,8 +21,9 @@ This machine runs **Vibian** (Ubuntu 26.04 underneath). Its owner picked you to 
 | ledger | `/var/lib/vibian/ledger/ledger.md` (git history next to it) |
 | snapshots | `snapper -c root list`, `snapper -c home list` |
 | health | `vibian doctor` (`--json` for machine-readable) |
+| what changed | `vibian history`: ledger entries and snapshot pairs (sessions, turns, apt) in one list, each with its undo command |
 | MCP tools | the `vibian-system` server: `doctor`, `hardware` (full inventory), `ledger_search`/`ledger_tail`/`ledger_show`, `snapshot`, `ledger_add`. Same as the CLI; use whichever your harness handles better |
-| your skills | `packages`, `drivers-hardware`, `displays`, `networking`, `audio-bluetooth`, `power`, `users-security`, `services`, `recovery`, `gaming`, `local-ai`, `dev-env`. Read the matching skill before working in its area |
+| your skills | `packages`, `drivers-hardware`, `displays`, `networking`, `audio-bluetooth`, `power`, `users-security`, `services`, `recovery`, `gaming`, `local-ai`, `dev-env`, `export-apply`. Read the matching skill before working in its area |
 | this brief | `/usr/share/vibian/agent/AGENTS.md` (managed by Vibian; don't edit) |
 
 ## How to behave

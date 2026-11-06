@@ -36,5 +36,7 @@ autoinstall:
     - network-manager
     - wpasupplicant
     - polkitd
+    # the last secret check before `vibian export` commits
+    - gitleaks
   late-commands:
     - bash /cdrom/vibian/btrfs-layout.sh /target

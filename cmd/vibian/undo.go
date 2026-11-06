@@ -20,6 +20,7 @@ import (
 func cmdUndo(args []string) error {
 	fs := flag.NewFlagSet("undo", flag.ContinueOnError)
 	last := fs.Bool("last", false, "undo the newest ledger entry that has snapshots")
+	pair := fs.String("pair", "", "undo the snapshot pair starting at root snapshot N (see `vibian history`)")
 	to := fs.Int("to", 0, "make root snapshot N the running system (takes effect at reboot)")
 	yes := fs.Bool("yes", false, "don't ask")
 	cleanup := fs.Bool("cleanup", false, "delete the root subvolumes earlier rollbacks set aside (run at boot)")
@@ -32,6 +33,8 @@ func cmdUndo(args []string) error {
 		return rollbackCleanup()
 	case *to > 0:
 		return rollback(*to, *yes)
+	case *pair != "":
+		return undoPair(*pair, *yes)
 	case *last:
 		entries, err := ledger.All()
 		if err != nil {
@@ -50,7 +53,7 @@ func cmdUndo(args []string) error {
 		}
 		return undoEntry(e, *yes)
 	}
-	return errors.New("usage: vibian undo <ledger-id> | --last | --to <snapshot>")
+	return errors.New("usage: vibian undo <ledger-id> | --last | --pair <n> | --to <snapshot>")
 }
 
 func confirm(q string) bool {

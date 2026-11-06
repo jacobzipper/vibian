@@ -137,11 +137,37 @@ ssh_vm 'set -x
   echo "turn-kept=$(( $(turns) - t0 ))"
   { vibian hook turn-start --agent claude; sudo rm /etc/vibian-turn-test; vibian hook turn-end --agent claude; } >>/tmp/turn.out
   echo "turn-debounced=$(( $(turns) - t0 )) stdout=$(wc -c </tmp/turn.out)"
-  rm -f /tmp/turn.out' 2>&1 | tee cli.log
+  rm -f /tmp/turn.out
+  # history joins the ledger to snapshot pairs; a pair nobody logged (this
+  # apt install) can be undone by number
+  echo "history-ledger=$(vibian history -n 0 | grep -cE "^[0-9-]+ [0-9:]+ +L-0001 ") history-turn=$(vibian history -n 0 | grep -c "agent turn: Claude Code")"
+  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -q sl >/dev/null 2>&1
+  pre=$(vibian history --json -n 1 | python3 -c "import json,sys; c=json.load(sys.stdin)[-1]; print(c[\"snapshots\"][\"root\"][0] if c[\"what\"]==\"apt\" else 0)")
+  vibian undo --pair "$pre" --yes >/dev/null
+  echo "pair-undo=$(test -e /usr/games/sl && echo kept || echo reverted)"
+  # export: secrets scrubbed, private files dropped, gitleaks as the last
+  # gate; then apply puts the dotfiles back
+  mkdir -p ~/.config/kitty ~/.config/hypr
+  printf "font_size 12\nexport GITHUB_TOKEN=ghp_abcdefghijklmnopqrstuvwxyz0123456789AB\n" > ~/.config/kitty/kitty.conf
+  printf "SECRET=1\n" > ~/.config/hypr/.env
+  printf "bind = SUPER, Q, exec, kitty\n" > ~/.config/hypr/hyprland.conf
+  vibian export ~/rice --name test >/tmp/export.out 2>&1; echo "export-rc=$? $(grep -c "gitleaks: no secrets found" /tmp/export.out)"
+  echo "export-leaks=$(grep -rl ghp_ ~/rice --exclude-dir=.git | wc -l) env=$(test -e ~/rice/dotfiles/.config/hypr/.env && echo copied || echo dropped) commits=$(git -C ~/rice rev-list --count HEAD)"
+  # a fake Stripe key, built at runtime so the repo itself holds none
+  printf "STRIPE=sk_%s_51H8abcdefghijklmnopqrstuvwxyzAB\n" live > ~/.config/hypr/pay.conf
+  vibian export ~/rice >/tmp/export.out 2>&1; echo "export-gate=$? $(grep -c stripe /tmp/export.out) commits=$(git -C ~/rice rev-list --count HEAD)"
+  rm ~/.config/hypr/pay.conf
+  vibian export ~/rice >/dev/null 2>&1
+  rm ~/.config/kitty/kitty.conf
+  vibian apply ~/rice --scripts-only --yes >/tmp/apply.out 2>&1; echo "apply-rc=$? kitty=$(grep -c "redacted by vibian export" ~/.config/kitty/kitty.conf)"
+  vibian log tail 1 | head -1
+  rm -f /tmp/export.out /tmp/apply.out' 2>&1 | tee cli.log
 for want in 'tty1=.*vibian' 'nopasswd=yes' 'doctor-rootfs=ok' 'doctor-snapper=ok' 'ledger-subvol=subvol=/@var_lib_vibian' 'kit=ok' \
             'motd=/etc/update-motd.d/00-vibian /etc/update-motd.d/9' 'issue=Vibian' 'nm-wired=ethernet:connected' 'wifi=\(connected\)|wifi=no-hwsim' \
             'mcp-tools=7' 'mcp-ledger=.*cli test change' \
             'turn-clean=1$' 'turn-kept=2$' 'turn-debounced=2 stdout=0$' \
+            'history-ledger=1 history-turn=[1-9]' 'pair-undo=reverted' \
+            'export-rc=0 1$' 'export-leaks=0 env=dropped commits=1$' 'export-gate=1 [1-9] commits=1$' 'apply-rc=0 kitty=1$' 'apply rice test' \
             'L-0001 recorded \(snapshots root' 'undo-root=reverted' 'undo-home=reverted' 'undo L-0001'; do
   grep -qE -- "$want" cli.log || { echo "MISSING (cli): $want"; fail=1; }
 done

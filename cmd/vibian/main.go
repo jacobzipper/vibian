@@ -18,7 +18,10 @@ const usage = `vibian: an OS run by your coding agent
   vibian snap "why"                   snapshot root and home before a change
   vibian log add "summary" [flags]    record a change (closes the last snap)
   vibian log [tail|show <id>|search <words>]
-  vibian undo [<ledger-id>|--last|--to <snapshot>]
+  vibian history [-n N] [--json]      ledger entries and snapshot pairs, newest last
+  vibian undo [<ledger-id>|--last|--pair <n>|--to <snapshot>]
+  vibian export [DIR] [--publish]     this setup as a shareable rice repo, secrets scrubbed
+  vibian apply <github:user/repo|dir> your agent applies someone's rice (--scripts-only: no agent)
   vibian doctor [--json]              health check
   vibian mcp                          the vibian-system MCP server (stdio)
   vibian hook turn-start|turn-end     per-turn snapshots (harness hooks run this)
@@ -43,8 +46,14 @@ func main() {
 		err = cmdSnap(args)
 	case "log":
 		err = cmdLog(args)
+	case "history":
+		err = cmdHistory(args)
 	case "undo":
 		err = cmdUndo(args)
+	case "export":
+		err = cmdExport(args)
+	case "apply":
+		err = cmdApply(args)
 	case "doctor":
 		err = cmdDoctor(args)
 	case "mcp":
