@@ -12,13 +12,42 @@ import (
 )
 
 // Tool is one callable tool. Schema is its JSON Schema for arguments.
+// Call returns text; tools that return images use Content instead.
 type Tool struct {
 	Name        string
 	Description string
 	Schema      map[string]any
 	ReadOnly    bool
 	Call        func(args json.RawMessage) (string, error)
+	Content     func(args json.RawMessage) ([]Content, error)
 }
+
+// Content is one item of a tool result: text, or an image with its MIME type.
+type Content struct {
+	Type     string
+	Text     string
+	Data     []byte
+	MimeType string
+}
+
+func (c Content) MarshalJSON() ([]byte, error) {
+	if c.Type == "text" {
+		return json.Marshal(struct {
+			Type string `json:"type"`
+			Text string `json:"text"`
+		}{c.Type, c.Text})
+	}
+	return json.Marshal(struct {
+		Type     string `json:"type"`
+		Data     []byte `json:"data"` // base64, as MCP wants
+		MimeType string `json:"mimeType"`
+	}{c.Type, c.Data, c.MimeType})
+}
+
+// Text and Image build result items.
+func Text(s string) Content { return Content{Type: "text", Text: s} }
+
+func Image(png []byte) Content { return Content{Type: "image", Data: png, MimeType: "image/png"} }
 
 // Server answers MCP requests for a fixed set of tools.
 type Server struct {
@@ -121,12 +150,20 @@ func (s Server) handle(req request) (any, *rpcError) {
 			if len(p.Arguments) == 0 {
 				p.Arguments = json.RawMessage("{}")
 			}
-			text, err := t.Call(p.Arguments)
+			var content []Content
+			var err error
+			if t.Content != nil {
+				content, err = t.Content(p.Arguments)
+			} else {
+				var text string
+				text, err = t.Call(p.Arguments)
+				content = []Content{Text(text)}
+			}
 			if err != nil {
 				// tool errors go back to the model as a result, so it can react
-				return map[string]any{"content": []map[string]any{{"type": "text", "text": err.Error()}}, "isError": true}, nil
+				return map[string]any{"content": []Content{Text(err.Error())}, "isError": true}, nil
 			}
-			return map[string]any{"content": []map[string]any{{"type": "text", "text": text}}}, nil
+			return map[string]any{"content": content}, nil
 		}
 		return nil, &rpcError{-32602, fmt.Sprintf("unknown tool %q", p.Name)}
 	}

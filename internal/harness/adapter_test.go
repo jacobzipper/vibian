@@ -114,6 +114,10 @@ func TestRegisterMCP(t *testing.T) {
 		if args, _ := s["args"].([]any); len(args) != 3 || args[2] != f.id || s["command"] == "" {
 			t.Errorf("%s: server %v", f.id, s)
 		}
+		c := cfg.Servers[ComputerMCPName]
+		if args, _ := c["args"].([]any); len(args) != 4 || args[1] != "computer" || args[3] != f.id {
+			t.Errorf("%s: computer server %v", f.id, c)
+		}
 		switch f.id {
 		case "claude":
 			if cfg.NumStartups != 3 || cfg.Servers["mine"] == nil {
@@ -132,7 +136,7 @@ func TestRegisterMCP(t *testing.T) {
 	b, _ := os.ReadFile(filepath.Join(home, ".codex/config.toml"))
 	s := string(b)
 	if strings.Count(s, "mcp_servers."+MCPName+" = {") != 1 || !strings.HasPrefix(s, "# vibian:begin") ||
-		!strings.Contains(s, `args = ["mcp", "--agent", "codex"]`) || !strings.Contains(s, "[mcp_servers.mine]") || !strings.Contains(s, `model = "gpt-5"`) {
+		!strings.Contains(s, `args = ["mcp", "--agent", "codex"]`) || !strings.Contains(s, `args = ["mcp", "computer", "--agent", "codex"]`) || !strings.Contains(s, "[mcp_servers.mine]") || !strings.Contains(s, `model = "gpt-5"`) {
 		t.Fatalf("codex config.toml:\n%s", s)
 	}
 }
@@ -156,6 +160,10 @@ func TestOpencodeSystemConfig(t *testing.T) {
 	s := cfg.MCP.Servers[MCPName]
 	if s.Type != "local" || !slices.Equal(s.Command, []string{"/usr/bin/vibian", "mcp", "--agent", "opencode"}) {
 		t.Fatalf("opencode server %+v", s)
+	}
+	c := cfg.MCP.Servers[ComputerMCPName]
+	if c.Type != "local" || !slices.Equal(c.Command, []string{"/usr/bin/vibian", "mcp", "computer", "--agent", "opencode"}) {
+		t.Fatalf("opencode computer server %+v", c)
 	}
 }
 

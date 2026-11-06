@@ -148,6 +148,7 @@ vibian doctor                      # GPU/driver/SB/firmware/network/audio/snappe
 vibian export [DIR] [--add PATH] [--publish]   # machine → git repo (see 4.7)
 vibian apply <github:user/repo|path> [--dry-run|--scripts-only]   # hand a rice to your agent to replay
 vibian playbooks [list|show <id>]
+vibian mcp [computer] [--agent X]  # MCP servers on stdio: vibian-system, vibian-computer
 vibian powers [root|confirm|scoped]    # change the privilege mode later
 ```
 
@@ -176,7 +177,7 @@ vibian powers [root|confirm|scoped]    # change the privilege mode later
 
   Plus `desktop-playbooks`, a meta-skill that knows the gallery and how to interview the user.
 - **MCP servers:**
-  - `vibian-computer`: a generalisation of the laptop's `nhk-computer`. Tools: screenshot (region/scale), windows, focus_window, click/drag/scroll, type_text, key.
+  - `vibian-computer` (`vibian mcp computer`): a generalisation of the laptop's `nhk-computer`. Tools: screenshot (region/scale, returned as an image plus a note mapping image pixels to screen coordinates), windows, focus_window, move_mouse, click/drag/scroll, type_text, key. Backends: Hyprland (hyprctl, grim, wtype), Sway (its own seat pointer), niri, other wlroots (grim, wtype), KDE (spectacle, KWin scripts), X11 (maim, wmctrl, xdotool), GNOME best effort. Where the desktop has no pointer or keyboard injection, it creates a uinput tablet and keyboard; a udev `uaccess` rule gives `/dev/uinput` to the user at the seat. `vibian agent` registers it next to `vibian-system`.
     - Backends: wlroots (Hyprland/Sway/niri) via grim + virtual pointer + wtype; KDE via the KWin scripting/portal screenshot; X11 via xdotool + maim; a uinput fallback for buttons and the wheel.
     - GNOME Wayland is the hard one: screenshots go through the portal, input through uinput (ydotool-style).
   - `vibian-system` (small, `vibian mcp`): `doctor` JSON, the hardware inventory, ledger search/tail/show, plus `snapshot` and `ledger_add` so the three rules work as tool calls. Structured context even weak local models can use. `vibian agent` registers it in every harness (opencode reads it from `/etc/opencode/opencode.json`).

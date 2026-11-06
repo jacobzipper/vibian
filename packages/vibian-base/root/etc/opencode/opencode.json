@@ -5,6 +5,10 @@
       "vibian-system": {
         "type": "local",
         "command": ["/usr/bin/vibian", "mcp", "--agent", "opencode"]
+      },
+      "vibian-computer": {
+        "type": "local",
+        "command": ["/usr/bin/vibian", "mcp", "computer", "--agent", "opencode"]
       }
     }
   }

@@ -19,13 +19,18 @@ const mcpInstructions = `Vibian's own tools: machine health (doctor), a hardware
 	`and the ledger of every change made to this computer. Read the ledger before changing ` +
 	`something (ledger_search), call snapshot before risky changes, and ledger_add when done.`
 
-// cmdMCP serves the vibian-system MCP server on stdio. Harnesses start it
-// with --agent <id> because some of them don't pass VIBIAN_AGENT through.
+// cmdMCP serves the vibian-system MCP server on stdio, or with `computer`
+// the vibian-computer one. Harnesses start them with --agent <id> because
+// some of them don't pass VIBIAN_AGENT through.
 func cmdMCP(args []string) error {
+	s := mcp.Server{Name: "vibian", Version: version, Instructions: mcpInstructions, Tools: systemTools()}
+	if len(args) > 0 && args[0] == "computer" {
+		s = mcp.Server{Name: "vibian-computer", Version: version, Instructions: computerInstructions, Tools: computerTools()}
+		args = args[1:]
+	}
 	if len(args) == 2 && args[0] == "--agent" {
 		os.Setenv("VIBIAN_AGENT", args[1])
 	}
-	s := mcp.Server{Name: "vibian", Version: version, Instructions: mcpInstructions, Tools: systemTools()}
 	return s.Serve(os.Stdin, os.Stdout)
 }
 

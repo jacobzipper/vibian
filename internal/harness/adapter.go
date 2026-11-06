@@ -60,45 +60,71 @@ func (h Harness) Configure() error {
 	return h.registerHooks(home)
 }
 
-// MCPName is the vibian-system MCP server's name in every harness.
-const MCPName = "vibian-system"
+// MCPName is the vibian-system MCP server's name in every harness, and
+// ComputerMCPName the vibian-computer one's.
+const (
+	MCPName         = "vibian-system"
+	ComputerMCPName = "vibian-computer"
+)
 
-const mcpDescription = "Vibian's system tools: doctor, hardware, the ledger and snapshots"
+// mcpServer is one of Vibian's MCP servers as a harness starts it.
+type mcpServer struct {
+	name, description string
+	args              []string
+}
 
-// mcpCommand is how harnesses start `vibian mcp`. The --agent flag stands in
-// for VIBIAN_AGENT, which some harnesses don't pass to MCP servers.
-func (h Harness) mcpCommand() (string, []string) {
+// vibianBin is the vibian binary harnesses should run.
+func vibianBin() string {
 	bin := "/usr/bin/vibian"
 	if _, err := os.Stat(bin); err != nil {
 		if exe, err := os.Executable(); err == nil {
 			bin = exe
 		}
 	}
-	return bin, []string{"mcp", "--agent", h.ID}
+	return bin
 }
 
-// registerMCP adds the vibian-system server to the harness's user-level MCP
-// config, next to the user's own servers. opencode gets it from
+// mcpServers are Vibian's servers for this harness. The --agent flag stands
+// in for VIBIAN_AGENT, which some harnesses don't pass to MCP servers.
+func (h Harness) mcpServers() []mcpServer {
+	return []mcpServer{
+		{MCPName, "Vibian's system tools: doctor, hardware, the ledger and snapshots", []string{"mcp", "--agent", h.ID}},
+		{ComputerMCPName, "Computer use: screenshots, windows, mouse and keyboard on this machine's desktop", []string{"mcp", "computer", "--agent", h.ID}},
+	}
+}
+
+// registerMCP adds Vibian's servers to the harness's user-level MCP config,
+// next to the user's own servers. opencode gets them from
 // /etc/opencode/opencode.json, which vibian-base ships.
 func (h Harness) registerMCP(home string) error {
-	bin, args := h.mcpCommand()
-	stdio := map[string]any{"command": bin, "args": args}
+	bin := vibianBin()
+	if h.ID == "codex" {
+		return codexMCP(filepath.Join(home, ".codex/config.toml"), bin, h.mcpServers())
+	}
+	for _, s := range h.mcpServers() {
+		if err := h.registerServer(home, bin, s); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (h Harness) registerServer(home, bin string, s mcpServer) error {
+	stdio := map[string]any{"command": bin, "args": s.args}
 	switch h.ID {
 	case "claude":
-		return setJSON(filepath.Join(home, ".claude.json"), []string{"mcpServers", MCPName},
-			map[string]any{"type": "stdio", "command": bin, "args": args, "env": map[string]any{}})
+		return setJSON(filepath.Join(home, ".claude.json"), []string{"mcpServers", s.name},
+			map[string]any{"type": "stdio", "command": bin, "args": s.args, "env": map[string]any{}})
 	case "gemini":
-		return setJSON(filepath.Join(home, ".gemini/settings.json"), []string{"mcpServers", MCPName}, stdio)
+		return setJSON(filepath.Join(home, ".gemini/settings.json"), []string{"mcpServers", s.name}, stdio)
 	case "cursor":
-		return setJSON(filepath.Join(home, ".cursor/mcp.json"), []string{"mcpServers", MCPName}, stdio)
+		return setJSON(filepath.Join(home, ".cursor/mcp.json"), []string{"mcpServers", s.name}, stdio)
 	case "pi":
-		stdio["description"] = mcpDescription
-		return setJSON(filepath.Join(home, ".pi/agent/mcp.json"), []string{"mcpServers", MCPName}, stdio)
-	case "codex":
-		return codexMCP(filepath.Join(home, ".codex/config.toml"), bin, args)
+		stdio["description"] = s.description
+		return setJSON(filepath.Join(home, ".pi/agent/mcp.json"), []string{"mcpServers", s.name}, stdio)
 	case "openclaw":
 		// openclaw.json is JSON5, so let openclaw edit it, once
-		if strings.Contains(string(readFile(filepath.Join(home, ".openclaw/openclaw.json"))), `"`+MCPName+`"`) {
+		if strings.Contains(string(readFile(filepath.Join(home, ".openclaw/openclaw.json"))), `"`+s.name+`"`) {
 			return nil
 		}
 		oc, ok := h.Path()
@@ -106,7 +132,7 @@ func (h Harness) registerMCP(home string) error {
 			return nil
 		}
 		b, _ := json.Marshal(stdio)
-		cmd := exec.Command(oc, "mcp", "set", MCPName, string(b))
+		cmd := exec.Command(oc, "mcp", "set", s.name, string(b))
 		cmd.Env = Env()
 		if out, err := cmd.CombinedOutput(); err != nil {
 			return fmt.Errorf("openclaw mcp set: %v: %s", err, strings.TrimSpace(string(out)))
@@ -124,7 +150,7 @@ const hookMark = " hook turn-"
 // /etc/codex/requirements.toml, which vibian-base ships: Codex runs managed
 // hooks without asking the user to trust them first.
 func (h Harness) registerHooks(home string) error {
-	bin, _ := h.mcpCommand()
+	bin := vibianBin()
 	cmd := func(ev string) string { return bin + " hook " + ev + " --agent " + h.ID }
 	switch h.ID {
 	case "claude":
@@ -258,14 +284,18 @@ func readFile(path string) []byte {
 
 // codexMCP puts the server at the top of config.toml as a root-level dotted
 // key, so it never swallows the user's keys the way a [table] block would.
-func codexMCP(path, bin string, args []string) error {
+func codexMCP(path, bin string, servers []mcpServer) error {
 	text := string(readFile(path))
+	var lines []string
+	for _, s := range servers {
+		lines = append(lines, fmt.Sprintf("mcp_servers.%s = { command = %q, args = %s }", s.name, bin, tomlList(s.args)))
+	}
 	if strings.Contains(text, "\n[mcp_servers]") || strings.HasPrefix(text, "[mcp_servers]") {
 		// a plain [mcp_servers] table can't be mixed with dotted keys
-		return fmt.Errorf("%s has an [mcp_servers] table; add %s there by hand: command = %q, args = %s", path, MCPName, bin, tomlList(args))
+		return fmt.Errorf("%s has an [mcp_servers] table; add Vibian's servers there by hand:\n%s", path,
+			strings.ReplaceAll(strings.Join(lines, "\n"), "mcp_servers.", ""))
 	}
-	line := fmt.Sprintf("mcp_servers.%s = { command = %q, args = %s }", MCPName, bin, tomlList(args))
-	return writeMarked(path, "# vibian:begin (managed by `vibian agent`, edits inside are overwritten)", "# vibian:end", line)
+	return writeMarked(path, "# vibian:begin (managed by `vibian agent`, edits inside are overwritten)", "# vibian:end", strings.Join(lines, "\n"))
 }
 
 func tomlList(xs []string) string {

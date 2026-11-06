@@ -24,6 +24,7 @@ const usage = `vibian: an OS run by your coding agent
   vibian apply <github:user/repo|dir> your agent applies someone's rice (--scripts-only: no agent)
   vibian doctor [--json]              health check
   vibian mcp                          the vibian-system MCP server (stdio)
+  vibian mcp computer                 the vibian-computer MCP server (stdio)
   vibian hook turn-start|turn-end     per-turn snapshots (harness hooks run this)
   vibian version
 `

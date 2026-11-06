@@ -16,6 +16,9 @@ func TestServe(t *testing.T) {
 			return p.Text, nil
 		}},
 		{Name: "fail", Call: func(json.RawMessage) (string, error) { return "", errors.New("nope") }},
+		{Name: "pic", Content: func(json.RawMessage) ([]Content, error) {
+			return []Content{Image([]byte("PNG")), Text("note")}, nil
+		}},
 	}}
 	in := strings.Join([]string{
 		`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"x","version":"0"}}}`,
@@ -23,6 +26,7 @@ func TestServe(t *testing.T) {
 		`{"jsonrpc":"2.0","id":2,"method":"tools/list"}`,
 		`{"jsonrpc":"2.0","id":"a","method":"tools/call","params":{"name":"echo","arguments":{"text":"hi"}}}`,
 		`{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"fail"}}`,
+		`{"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"pic"}}`,
 		`{"jsonrpc":"2.0","id":5,"method":"nope"}`,
 		`not json`,
 	}, "\n")
@@ -31,14 +35,15 @@ func TestServe(t *testing.T) {
 		t.Fatal(err)
 	}
 	lines := strings.Split(strings.TrimSpace(out.String()), "\n")
-	if len(lines) != 6 {
-		t.Fatalf("want 6 responses, got %d:\n%s", len(lines), out.String())
+	if len(lines) != 7 {
+		t.Fatalf("want 7 responses, got %d:\n%s", len(lines), out.String())
 	}
 	for i, want := range []string{
 		`"protocolVersion":"2025-06-18"`,
 		`"name":"echo"`,
-		`"id":"a","result":{"content":[{"text":"hi","type":"text"}]}`,
+		`"id":"a","result":{"content":[{"type":"text","text":"hi"}]}`,
 		`"isError":true`,
+		`{"type":"image","data":"UE5H","mimeType":"image/png"},{"type":"text","text":"note"}`,
 		`"code":-32601`,
 		`"code":-32700`,
 	} {

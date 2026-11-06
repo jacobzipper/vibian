@@ -6,6 +6,7 @@
 # on build machines. Build the ISO with VIBIAN_CMDLINE_EXTRA=console=ttyS0,115200
 # so the installer log lands in WORKDIR/install.serial.log.
 set -euo pipefail
+here=$(dirname "$(realpath "$0")")
 iso=$(realpath "${1:?usage: headless-install.sh ISO WORKDIR}")
 wd=${2:?usage: headless-install.sh ISO WORKDIR}
 mkdir -p "$wd" && cd "$wd"
@@ -170,6 +171,18 @@ for want in 'tty1=.*vibian' 'nopasswd=yes' 'doctor-rootfs=ok' 'doctor-snapper=ok
             'export-rc=0 1$' 'export-leaks=0 env=dropped commits=1$' 'export-gate=1 [1-9] commits=1$' 'apply-rc=0 kitty=1$' 'apply rice test' \
             'L-0001 recorded \(snapshots root' 'undo-root=reverted' 'undo-home=reverted' 'undo L-0001'; do
   grep -qE -- "$want" cli.log || { echo "MISSING (cli): $want"; fail=1; }
+done
+[ $fail = 0 ] || { echo "VM-TEST-FAIL"; exit 1; }
+
+# Computer use: the vibian-computer MCP server on headless Sway and Xvfb.
+echo "== computer use"
+ssh_vm 'cat > /tmp/computer-drive.py' < "$here/computer-drive.py"
+ssh_vm 'bash -s' < "$here/computer-use.sh" 2>&1 | tee computer.log
+for want in 'cu-apt=0' 'uinput-rule=present' \
+            'sway-windows=2' 'sway-focus=left click=right typed=sway drag=left$' 'sway-shots=1280x720 \[.320x180.\]' 'sway-errors=1 badkey=yes' \
+            'uinput-windows=2' 'uinput-focus=left click=right typed=uinput drag=left$' 'uinput-shots=1280x720 \[.320x180.\]' 'uinput-errors=1 badkey=yes' \
+            'x11-typed=x11' 'x11-shots=1024x768 \[.200x100.\]' 'x11-errors=0'; do
+  grep -qE -- "^$want" computer.log || { echo "MISSING (computer): $want"; fail=1; }
 done
 [ $fail = 0 ] || { echo "VM-TEST-FAIL"; exit 1; }
 

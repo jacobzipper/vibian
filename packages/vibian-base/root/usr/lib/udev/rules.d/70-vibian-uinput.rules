@@ -1,0 +1,5 @@
+# vibian-computer places the pointer and presses keys through a uinput device
+# on desktops without a protocol for it (KDE, GNOME, and buttons on wlroots).
+# Like Steam's controller rule, this gives /dev/uinput to whoever is logged in
+# at the machine's own screen. It has to sort before 73-seat-late.rules.
+KERNEL=="uinput", SUBSYSTEM=="misc", OPTIONS+="static_node=uinput", TAG+="uaccess"
