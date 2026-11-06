@@ -7,6 +7,7 @@ import (
 	"image/png"
 	"math"
 	"os"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -406,4 +407,34 @@ func (niri) Windows() ([]Window, error) {
 func (niri) Focus(id string) error {
 	_, err := run("niri", "msg", "action", "focus-window", "--id", id)
 	return err
+}
+
+// cosmic is COSMIC: wtype and the uinput tablet as on wlroots, but
+// cosmic-comp has no wlr-screencopy, so screenshots go through COSMIC's
+// portal. The first one makes COSMIC ask the user "Allow Apps to Take
+// Screenshots?"; after Allow, the rest are silent.
+type cosmic struct{ wlroots }
+
+func (cosmic) Name() string { return "COSMIC" }
+
+func (c cosmic) Monitors() ([]Monitor, error) { return screenFromShot(c.Capture) }
+
+func (cosmic) Capture(r Rect, scale float64, _ bool) ([]byte, error) {
+	dir, err := os.MkdirTemp("", "vibian-shot-")
+	if err != nil {
+		return nil, err
+	}
+	defer os.RemoveAll(dir)
+	if _, err := run("cosmic-screenshot", "--interactive=false", "--modal=false", "--notify=false", "--save-dir", dir); err != nil {
+		return nil, fmt.Errorf("%v (the first screenshot makes COSMIC ask \"Allow Apps to Take Screenshots?\": the user clicks Allow once)", err)
+	}
+	shots, _ := filepath.Glob(filepath.Join(dir, "*.png"))
+	if len(shots) == 0 {
+		return nil, errors.New("cosmic-screenshot saved nothing: the user may have clicked Deny when COSMIC asked whether apps may take screenshots")
+	}
+	data, err := os.ReadFile(shots[0])
+	if err != nil {
+		return nil, err
+	}
+	return cropScale(data, Rect{}, r, scale)
 }

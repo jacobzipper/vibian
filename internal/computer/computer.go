@@ -2,7 +2,8 @@
 // server: screenshots, windows, the pointer and the keyboard.
 //
 // Every desktop gets a backend. wlroots compositors (Hyprland, Sway, niri and
-// the rest) take screenshots with grim and type with wtype; KDE uses
+// the rest) take screenshots with grim and type with wtype; COSMIC is the
+// same but for screenshots, which go through its portal; KDE uses
 // spectacle and KWin scripts; X11 uses maim, wmctrl and xdotool. Where the
 // compositor has no way to place the pointer and press buttons, a uinput
 // device that behaves like a VM's USB tablet does it, so absolute positions
@@ -93,6 +94,8 @@ func Detect() (Desktop, error) {
 		return sway{}, nil
 	case procs["niri"]:
 		return niri{}, nil
+	case procs["cosmic-comp"]:
+		return cosmic{}, nil
 	case procs["kwin_wayland"]:
 		return kde{}, nil
 	case procs["gnome-shell"] && wayland:
@@ -112,6 +115,10 @@ func fixEnv() {
 	if run == "" {
 		run = fmt.Sprintf("/run/user/%d", os.Getuid())
 		os.Setenv("XDG_RUNTIME_DIR", run)
+	}
+	// portals (COSMIC's screenshots) and qdbus6 need the session bus
+	if os.Getenv("DBUS_SESSION_BUS_ADDRESS") == "" && exists(filepath.Join(run, "bus")) {
+		os.Setenv("DBUS_SESSION_BUS_ADDRESS", "unix:path="+filepath.Join(run, "bus"))
 	}
 	if w := os.Getenv("WAYLAND_DISPLAY"); w == "" || !exists(filepath.Join(run, w)) {
 		if socks := newest(filepath.Join(run, "wayland-*"), ".lock"); len(socks) > 0 {

@@ -27,6 +27,7 @@ import (
 // that exist are exported.
 var riceDotfiles = []string{
 	".config/hypr", ".config/waybar", ".config/sway", ".config/i3", ".config/niri", ".config/quickshell", ".config/eww",
+	".config/xfce4", ".config/cosmic",
 	".config/picom", ".config/polybar", ".config/rofi", ".config/wofi", ".config/fuzzel", ".config/walker", ".config/dunst",
 	".config/mako", ".config/swaync", ".config/kitty", ".config/alacritty", ".config/foot", ".config/wezterm", ".config/ghostty",
 	".config/fish", ".config/nvim", ".config/helix", ".config/zed/settings.json", ".config/fastfetch", ".config/btop",
@@ -349,19 +350,27 @@ func aptHistory() string {
 	return b.String()
 }
 
+// desktopPkgs maps a package each desktop playbook installs to the
+// playbook's ID. niri isn't in the archive: its playbook builds it into
+// /usr/local/bin.
+var desktopPkgs = map[string]string{"hyprland": "hyprland", "sway": "sway", "gnome-shell": "gnome",
+	"plasma-desktop": "kde-plasma", "i3-wm": "i3", "xfce4-session": "xfce", "cosmic-session": "cosmic"}
+
 // desktops are the desktop playbooks the installed packages point at.
 func desktops() []string {
-	byPkg := map[string]string{"hyprland": "hyprland", "sway": "sway", "niri": "niri", "gnome-shell": "gnome", "plasma-desktop": "kde", "i3-wm": "i3"}
 	var pkgs []string
-	for p := range byPkg {
+	for p := range desktopPkgs {
 		pkgs = append(pkgs, p)
 	}
 	out, _ := sys.Output("dpkg-query", append([]string{"-W", "-f", "${Package} ${db:Status-Status}\n"}, pkgs...)...)
 	var ids []string
 	for _, ln := range strings.Split(out, "\n") {
 		if p, st, ok := strings.Cut(ln, " "); ok && st == "installed" {
-			ids = append(ids, byPkg[p])
+			ids = append(ids, desktopPkgs[p])
 		}
+	}
+	if _, err := os.Stat("/usr/local/bin/niri"); err == nil {
+		ids = append(ids, "niri")
 	}
 	return rice.Sorted(ids)
 }

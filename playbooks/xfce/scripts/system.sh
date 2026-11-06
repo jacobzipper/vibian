@@ -25,7 +25,7 @@ apt-get -o DPkg::Lock::Timeout=300 install -y -q --no-install-recommends "${pkgs
 # desktop's bar would fail to start here anyway
 systemctl --global disable -q waybar.service mako.service hypridle.service hyprpolkitagent.service 2>/dev/null || true
 # one login screen at a time: another desktop's may own display-manager.service
-for dm in greetd sddm gdm3; do systemctl disable -q "$dm" 2>/dev/null || true; done
+for dm in greetd sddm gdm3 cosmic-greeter; do systemctl disable -q "$dm" 2>/dev/null || true; done
 install -d /etc/lightdm/lightdm.conf.d
 cat > /etc/lightdm/lightdm.conf.d/50-vibian.conf <<'T'
 # Written by Vibian's xfce playbook.

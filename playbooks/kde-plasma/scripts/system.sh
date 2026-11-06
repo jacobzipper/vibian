@@ -21,7 +21,7 @@ else
 fi
 
 # one login screen at a time: another desktop's may own display-manager.service
-for dm in greetd gdm3 lightdm; do systemctl disable -q "$dm" 2>/dev/null || true; done
+for dm in greetd gdm3 lightdm cosmic-greeter; do systemctl disable -q "$dm" 2>/dev/null || true; done
 # a tiling desktop's bar, notifications and idle daemon would start in Plasma
 # too (Ubuntu enables them for every graphical session); its config starts them
 systemctl --global disable -q waybar.service mako.service hypridle.service hyprpolkitagent.service 2>/dev/null || true

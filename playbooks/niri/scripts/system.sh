@@ -119,7 +119,7 @@ fi
 systemctl --global disable -q waybar.service mako.service hypridle.service hyprpolkitagent.service 2>/dev/null || true
 if [ "$login" = greetd ]; then
   # one login screen at a time: another desktop's may own display-manager.service
-  for dm in sddm gdm3 lightdm; do systemctl disable -q "$dm" 2>/dev/null || true; done
+  for dm in sddm gdm3 lightdm cosmic-greeter; do systemctl disable -q "$dm" 2>/dev/null || true; done
   install -d /etc/greetd
   [ -f /etc/greetd/config.toml ] && [ ! -f /etc/greetd/config.toml.vibian-bak ] && cp /etc/greetd/config.toml /etc/greetd/config.toml.vibian-bak
   greeter=$(getent passwd _greetd >/dev/null && echo _greetd || echo greeter)

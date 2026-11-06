@@ -13,11 +13,12 @@ description: "See and drive this machine's desktop with the vibian-computer MCP 
 | Sway | grim | swaymsg | Sway's own `seat cursor` | wtype |
 | niri | grim | `niri msg` | uinput tablet | wtype |
 | other wlroots (river, labwc, Wayfire…) | grim | none: use keys | uinput tablet | wtype |
+| COSMIC | cosmic-screenshot (the user allows it once) | none: use keys | uinput tablet | wtype |
 | KDE Plasma (Wayland) | spectacle | KWin scripts | uinput tablet | uinput (US ASCII) |
 | X11 (any WM) | maim, or ImageMagick `import` | wmctrl + xdotool | xdotool | xdotool |
 | GNOME (best effort) | gnome-screenshot, often refused on Wayland | none | uinput tablet | uinput (US ASCII) |
 
-A tool that needs something missing says which package to install (`grim`, `wtype`, `xdotool`, `wmctrl`, `maim`, `spectacle`). The playbooks install them with each desktop. `/dev/uinput` belongs to whoever is logged in at the screen (Vibian's udev rule `70-vibian-uinput.rules`, the same idea as Steam's controller rule).
+A tool that needs something missing says which package to install (`grim`, `wtype`, `xdotool`, `wmctrl`, `maim`, `spectacle`, `cosmic-screenshot`). The playbooks install them with each desktop. `/dev/uinput` belongs to whoever is logged in at the screen (Vibian's udev rule `70-vibian-uinput.rules`, the same idea as Steam's controller rule).
 
 ## The loop
 1. `windows` first. It is cheap and gives you the monitors, every window with its position, and which one is focused. `focus_window` beats hunting with the mouse.
@@ -38,8 +39,9 @@ A tool that needs something missing says which package to install (`grim`, `wtyp
 - **Sway**: ids are con ids. `swaymsg '[app_id=foot] focus'` and friends work too.
 - **niri**: windows have no screen position in its IPC, so take a screenshot to find them. `niri msg action` covers columns and workspaces.
 - **KDE**: the keyboard fallback types US ASCII only. For other text, `wl-copy 'text'`, then `key ctrl+v`. Window ids are KWin UUIDs.
+- **COSMIC**: the first screenshot makes COSMIC ask the user "Allow Apps to Take Screenshots?". Tell them to click Allow before you take it. If they denied it, they can change it in Settings. There's no window list: tap SUPER for the launcher (it finds open windows too), or use Alt+Tab and SUPER+arrows.
 - **X11**: ids are hex window ids from wmctrl. Panels and docks (desktop -1) are left out.
-- **GNOME** keeps silent screenshots and window lists to itself and its extensions. Say so, and suggest Hyprland/Sway/KDE if the user needs real computer use.
+- **GNOME** keeps silent screenshots and window lists to itself and its extensions. Say so, and suggest Hyprland/Sway/KDE/COSMIC if the user needs real computer use.
 - Multiple monitors share one coordinate space (the `monitors` list in `windows`). Negative positions are fine.
 
 ## Troubleshooting

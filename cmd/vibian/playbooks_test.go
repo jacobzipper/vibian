@@ -36,3 +36,21 @@ func TestShippedPlaybooks(t *testing.T) {
 		}
 	}
 }
+
+// An exported rice names its desktop by playbook ID, so each one must exist.
+func TestDesktopPackagesNamePlaybooks(t *testing.T) {
+	t.Setenv("VIBIAN_PLAYBOOKS", "../../playbooks")
+	books, err := loadPlaybooks()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ids := map[string]bool{}
+	for _, p := range books {
+		ids[p.ID] = true
+	}
+	for pkg, id := range desktopPkgs {
+		if !ids[id] {
+			t.Errorf("package %s points at playbook %q, which doesn't exist", pkg, id)
+		}
+	}
+}
