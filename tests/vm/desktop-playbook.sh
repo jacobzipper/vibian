@@ -2,9 +2,10 @@
 # desktop-playbook.sh ID: runs inside the test VM as the vibian user
 # (password vibian) and walks one desktop playbook the way the
 # desktop-playbooks skill tells an agent to: system.sh as root, user.sh,
-# verify.sh. Then it starts the login screen (greetd on VT 7, or SDDM for
-# kde-plasma), checks the greeter is up, and puts the machine back on the
-# text console. Prints ID.key=value lines for headless-install.sh to check.
+# verify.sh. Then it starts the login screen (greetd on VT 7, SDDM for
+# kde-plasma, GDM for gnome), checks the greeter is up, and puts the machine
+# back on the text console. Prints ID.key=value lines for headless-install.sh
+# to check.
 set -u
 id=${1:?usage: desktop-playbook.sh ID}
 pw=vibian
@@ -29,6 +30,7 @@ owner bash $pb/user.sh >/dev/null 2>&1; say "user-as-root=$?"
 
 case $id in
   kde-plasma) dm=sddm; greeter='sddm-greeter' ;;
+  gnome) dm=gdm3; greeter='gnome-shell --mode=gdm' ;;
   *) dm=greetd; greeter='^tuigreet' ;;
 esac
 owner systemctl start $dm
