@@ -19,7 +19,8 @@ import (
 // FirstPrompt is what the agent hears when onboarding hands over.
 const FirstPrompt = `Hi! I just installed Vibian and picked you as this machine's agent. ` +
 	`Introduce yourself in two sentences, run ` + "`vibian doctor`" + `, and tell me what you found ` +
-	`and what you'd fix. Then ask what I'd like this computer to be.`
+	`and what you'd fix. Then ask what I'd like this computer to be. It boots to a terminal for now; ` +
+	"`vibian playbooks`" + ` lists the desktops you can set up.`
 
 func cmdAgent(args []string) error {
 	sub := "run"

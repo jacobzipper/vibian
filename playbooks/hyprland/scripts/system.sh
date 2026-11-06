@@ -1,0 +1,39 @@
+#!/bin/bash
+# Hyprland playbook, root part: packages from the Ubuntu archive and the
+# login screen. Idempotent. Knobs: VIBIAN_TERMINAL, VIBIAN_LOGIN.
+set -euo pipefail
+[ "$(id -u)" = 0 ] || { echo "run as root (sudo bash $0)" >&2; exit 1; }
+term=${VIBIAN_TERMINAL:-foot}
+login=${VIBIAN_LOGIN:-greetd}
+case $term in foot|kitty|alacritty) ;; *) echo "VIBIAN_TERMINAL: foot, kitty or alacritty" >&2; exit 1 ;; esac
+case $login in greetd|tty) ;; *) echo "VIBIAN_LOGIN: greetd or tty" >&2; exit 1 ;; esac
+
+pkgs=(hyprland xdg-desktop-portal-hyprland xdg-desktop-portal-gtk hyprlock hypridle hyprpolkitagent
+      waybar fuzzel mako-notifier swaybg grim slurp wl-clipboard cliphist brightnessctl playerctl
+      pipewire-pulse wireplumber pavucontrol network-manager-gnome blueman
+      fonts-noto-core fonts-noto-color-emoji fonts-font-awesome qt6-wayland qtwayland5 "$term")
+[ "$login" = greetd ] && pkgs+=(greetd tuigreet)
+export DEBIAN_FRONTEND=noninteractive
+apt-get update -q
+apt-get install -y -q --no-install-recommends "${pkgs[@]}"
+
+if [ "$login" = greetd ]; then
+  install -d /etc/greetd
+  [ -f /etc/greetd/config.toml ] && [ ! -f /etc/greetd/config.toml.vibian-bak ] && cp /etc/greetd/config.toml /etc/greetd/config.toml.vibian-bak
+  greeter=$(getent passwd _greetd >/dev/null && echo _greetd || echo greeter)
+  cat > /etc/greetd/config.toml <<T
+# Written by Vibian's hyprland playbook.
+# vt 7 is Ubuntu's default: tty1 keeps its console (and onboarding)
+[terminal]
+vt = 7
+
+[default_session]
+command = "tuigreet --time --remember --asterisks --cmd start-hyprland"
+user = "$greeter"
+T
+  # tuigreet's --remember needs its cache dir
+  install -d -o "$greeter" -m 0755 /var/cache/tuigreet
+  systemctl enable greetd.service
+  systemctl set-default graphical.target
+fi
+echo "system part done: ${#pkgs[@]} packages, login=$login"

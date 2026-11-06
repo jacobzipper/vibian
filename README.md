@@ -41,15 +41,14 @@ vibian apply github:someone/their-rice     # their setup, rebuilt by your agent,
 | Harness install from onboarding (7 agents) | 🚧 pi and opencode installed and handed over from onboarding in the VM, driven by keyboard ([`tests/vm/drive.sh`](tests/vm/drive.sh)). All 7 official installers run unattended in the VM and every flag Vibian passes exists in their `--help`. Logging in to a real account is next |
 | Agent powers | ✅ "Everything" runs each agent in its no-prompts mode with passwordless sudo. "Ask first" makes every agent ask before commands and edits (opencode through permission rules, OpenClaw through its exec policy). pi has no approval prompts, and onboarding says so. "Scoped" takes sudo away: the agent runs root commands one at a time with `vibian sudo --why … -- cmd`, each is logged, and risky ones (disks, boot, sudoers, removing core packages, `rm -r` outside home) wait for you to run `sudo vibian approve <id>` |
 | Vibian login banner | ✅ replaces Ubuntu's welcome and "minimized" text on tty1 and ssh, moved aside so removing `vibian-base` brings them back |
-| 14 OS skills | ✅ packages, drivers-hardware, displays, networking, audio-bluetooth, power, users-security, services, recovery, computer-use, gaming, local-ai, dev-env, export-apply ([`agent-kit`](agent-kit)) |
+| 15 OS skills | ✅ packages, drivers-hardware, displays, networking, audio-bluetooth, power, users-security, services, recovery, computer-use, gaming, local-ai, dev-env, export-apply, desktop-playbooks ([`agent-kit`](agent-kit)) |
 | Wifi in onboarding | ✅ NetworkManager; pick a network and type its password on the Network step |
 | `vibian-system` MCP server | ✅ `vibian mcp`: doctor, hardware, ledger and snapshot tools, registered in all 7 harnesses' configs |
 | Per-turn snapshots | ✅ `vibian hook` keeps a root+home pair for each agent turn that changed something (at most one per 5 min); hooks or plugins for all 7 harnesses |
 | `vibian history` | ✅ ledger entries and snapshot pairs in one list; `vibian undo --pair <n>` for changes nobody logged |
 | Export and apply | ✅ `vibian export` writes the setup as a git repo: packages, dotfiles, apt sources, services, and the ledger. A deny-list, a scrub and gitleaks keep secrets out. `--publish` puts it on GitHub. `vibian apply` hands it to your agent with a plan; `--scripts-only` replays it as-is |
 | `vibian-computer` MCP server | ✅ `vibian mcp computer`: screenshot, windows, focus, click/drag/scroll, type, keys on Hyprland, Sway, niri, other wlroots, KDE and X11 (GNOME best effort), registered in all 7 harnesses. VM-tested on Sway (native and uinput input) and X11; Hyprland is checked read-only on real hardware; niri and KDE are untested |
-| desktop-playbooks | ⏳ |
-| 10 desktop playbooks | ⏳ |
+| Desktop playbooks | 🚧 `vibian playbooks` lists them and the `desktop-playbooks` skill walks the agent through one: a short interview, a root script, a user script, and a verify script that must print `VERIFY OK`. [Hyprland](playbooks/hyprland/PLAYBOOK.md) ✅ from the Ubuntu archive with a tuigreet login, waybar, fuzzel, mako, hypridle and hyprlock; the VM test runs it on every change, and it was booted to the desktop by hand ([screenshot](playbooks/hyprland/screenshots/desktop.png)). The other 9 are next |
 | Examples (Bloomberg desk, startup mission control, grandma mode) | ⏳ |
 
 ## Why not Omarchy?

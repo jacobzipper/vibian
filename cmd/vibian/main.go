@@ -25,6 +25,7 @@ const usage = `vibian: an OS run by your coding agent
   vibian export [DIR] [--publish]     this setup as a shareable rice repo, secrets scrubbed
   vibian apply <github:user/repo|dir> your agent applies someone's rice (--scripts-only: no agent)
   vibian doctor [--json]              health check
+  vibian playbooks [list|show <id>]   desktops the agent can set up
   vibian mcp                          the vibian-system MCP server (stdio)
   vibian mcp computer                 the vibian-computer MCP server (stdio)
   vibian hook turn-start|turn-end     per-turn snapshots (harness hooks run this)
@@ -59,6 +60,8 @@ func main() {
 		err = cmdApply(args)
 	case "doctor":
 		err = cmdDoctor(args)
+	case "playbooks":
+		err = cmdPlaybooks(args)
 	case "mcp":
 		err = cmdMCP(args)
 	case "hook":

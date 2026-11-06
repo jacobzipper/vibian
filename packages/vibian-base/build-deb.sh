@@ -3,7 +3,7 @@
 # carries: the vibian CLI and onboarding TUI, the agent kit (AGENTS.md and
 # skills), dracut's snapshot-boot overlay and GRUB defaults. Needs Go 1.24+.
 set -euo pipefail
-VERSION=0.5.0
+VERSION=0.6.0
 here=$(cd "$(dirname "$0")" && pwd)
 out=${1:?usage: build-deb.sh OUT_DIR}
 mkdir -p "$out"
@@ -18,6 +18,8 @@ repo=$here/../..
 mkdir -p "$pkg/usr/bin" "$pkg/usr/share/vibian"
 (cd "$repo" && CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=$VERSION" -o "$pkg/usr/bin/vibian" ./cmd/vibian)
 cp -a "$repo/agent-kit" "$pkg/usr/share/vibian/agent"
+cp -a "$repo/playbooks" "$pkg/usr/share/vibian/playbooks"
+cp "$repo/docs/assets/vibian-logo-dark.png" "$pkg/usr/share/vibian/vibian-logo.png"
 mkdir -p "$pkg/DEBIAN"
 cat > "$pkg/DEBIAN/control" <<CTL
 Package: vibian-base
