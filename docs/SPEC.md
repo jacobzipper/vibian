@@ -245,15 +245,17 @@ A generalisation of the laptop's SUPER+/ "Ask N.H.K." and `nhk-claw`: a hotkey d
 
 ## 5. Repo layout (`jacobzipper/vibian`, GPL-3.0)
 ```
-cmd/vibian/            Go CLI + onboarding TUI (Bubble Tea)
+cmd/vibian/            Go CLI entry points (onboard, agent, powers, snap, log, undo, doctor)
+internal/              onboard (Bubble Tea TUI), harness (the 7 adapters: install, login,
+                       instructions, skills, flags), ledger, snap, doctor, sys
 agent-kit/AGENTS.md    system brief
 agent-kit/skills/<14 skills>/SKILL.md + scripts/
 agent-kit/mcp/computer/  agent-kit/mcp/system/
-agent-kit/adapters/<harness>/install.sh
 playbooks/<10 desktops>/   rices/nhk/
-iso/                   autoinstall.yaml, remaster.sh, branding/
-packaging/debian/      vibian-* packages
-tests/vm/              libvirt/QEMU smoke tests (autoinstall → first boot → doctor → screenshots)
+iso/                   build.sh (remaster), autoinstall.yaml, btrfs-layout.sh, branding/
+packages/              vibian-base, grub-btrfs (build-deb.sh each)
+tests/vm/              QEMU tests: headless-install.sh (autoinstall → first boot → CLI →
+                       snapshot boot → rollback), drive.sh (keyboard walkthroughs)
 examples/<6 examples>/ prompts + recordings + exported rice
 docs/                  SPEC.md (this), CONTRIBUTING (how to write a playbook), case-study-nhk.md
 .github/               hardened workflows + CODEOWNERS
@@ -312,7 +314,7 @@ Built in public. The launch plan is to show demo videos of real prompts, have a 
 - **Omarchy moves fast** (23 agents, 4.5 shipped yesterday). If they add a ledger and `/home` snapshots, our edge narrows to blank canvas + Ubuntu/NVIDIA + whole-machine sharing. So ship fast and own the "build your own" and sharing story.
 - **btrfs via subiquity** may fight us (spike S1). Fallback: our own install step.
 - **GNOME Wayland computer use** is restricted. Ship it best-effort and document it.
-- **Harness churn:** 7 CLIs change paths and flags monthly. Keep adapters tiny and add a CI check that installs each one weekly in a VM.
+- **Harness churn:** 7 CLIs change paths and flags monthly. Adapters are data in `internal/harness/harness.go`. Keep them tiny and add a CI check that installs each one weekly in a VM (the manual version of that check passed on 2026-11-06).
 - **Agent logins with no browser** at first boot: device codes work for most; worst case, a phone QR code.
 
 ## 11. Resolved after the interview
