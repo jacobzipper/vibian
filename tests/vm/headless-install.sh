@@ -59,7 +59,8 @@ ssh_vm 'set -x
   s btrfs subvolume list /
   cat /etc/fstab
   s snapper --csvout list-configs
-  s apt-get install -y -q cowsay >/dev/null
+  # a first-boot apt job (locales, unattended-upgrades) may still hold the lock
+  s apt-get -o DPkg::Lock::Timeout=600 install -y -q cowsay >/dev/null
   s snapper --csvout -c root list --columns number,description
   sleep 10  # grub-btrfsd regenerates the menu after each snapshot
   echo "grub-btrfsd=$(systemctl is-active grub-btrfsd)"
@@ -142,7 +143,7 @@ ssh_vm 'set -x
   # history joins the ledger to snapshot pairs; a pair nobody logged (this
   # apt install) can be undone by number
   echo "history-ledger=$(vibian history -n 0 | grep -cE "^[0-9-]+ [0-9:]+ +L-0001 ") history-turn=$(vibian history -n 0 | grep -c "agent turn: Claude Code")"
-  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -q sl >/dev/null 2>&1
+  sudo DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=600 install -y -q sl >/dev/null 2>&1
   pre=$(vibian history --json -n 1 | python3 -c "import json,sys; c=json.load(sys.stdin)[-1]; print(c[\"snapshots\"][\"root\"][0] if c[\"what\"]==\"apt\" else 0)")
   vibian undo --pair "$pre" --yes >/dev/null
   echo "pair-undo=$(test -e /usr/games/sl && echo kept || echo reverted)"
@@ -196,7 +197,7 @@ for want in 'set=0 mode=scoped' 'plain-sudo=no' 'plain=0 owner=root' 'nowhy=1' '
 done
 echo "== desktop playbooks"
 : > playbook.log
-for id in hyprland sway niri kde-plasma gnome; do
+for id in hyprland sway niri i3 kde-plasma gnome; do
   ssh_vm "bash -s $id" < "$here/desktop-playbook.sh" 2>&1 | tee -a playbook.log
   greeter='greeter=up vt=tty7'; case $id in kde-plasma|gnome) greeter='greeter=up' ;; esac
   for want in 'listed=1' 'show=0' 'system=0' 'bad-knob=1' 'user=0' 'rerun=0 new-baks=0' 'verify=0' 'user-as-root=1' "$greeter"; do
@@ -213,7 +214,7 @@ ssh_vm 'set -x
   s() { echo vibian | sudo -S -p "" "$@"; }
   n=$(s snapper -c root create -d pre-break --print-number)
   s touch /etc/vibian-broken
-  s apt-get remove -y -q cowsay >/dev/null
+  s apt-get -o DPkg::Lock::Timeout=600 remove -y -q cowsay >/dev/null
   sleep 10
   echo "snapshot-menu=$(s grep -c "Vibian snapshots" /boot/grub/grub.cfg)"
   # menu positions: snapshot n in the snapshots list, the running kernel in its submenu

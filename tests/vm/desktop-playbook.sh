@@ -3,9 +3,9 @@
 # (password vibian) and walks one desktop playbook the way the
 # desktop-playbooks skill tells an agent to: system.sh as root, user.sh,
 # verify.sh. Then it starts the login screen (greetd on VT 7, SDDM for
-# kde-plasma, GDM for gnome), checks the greeter is up, and puts the machine
-# back on the text console. Prints ID.key=value lines for headless-install.sh
-# to check.
+# kde-plasma, GDM for gnome, LightDM for i3), checks the greeter is up, and
+# puts the machine back on the text console. Prints ID.key=value lines for
+# headless-install.sh to check.
 set -u
 id=${1:?usage: desktop-playbook.sh ID}
 pw=vibian
@@ -16,7 +16,8 @@ baks() { find ~/.config -name '*.vibian-bak' | wc -l; }
 
 say "listed=$(vibian playbooks | grep -c "^$id .*tested")"
 vibian playbooks show "$id" | grep -q '## Interview'; say "show=$?"
-owner env VIBIAN_TERMINAL=foot bash $pb/system.sh > /tmp/pb-system.log 2>&1; say "system=$?"
+term=foot; [ "$id" = i3 ] && term=alacritty  # foot is Wayland-only
+owner env VIBIAN_TERMINAL=$term bash $pb/system.sh > /tmp/pb-system.log 2>&1; say "system=$?"
 tail -3 /tmp/pb-system.log
 VIBIAN_ACCENT=zzz bash $pb/user.sh >/dev/null 2>&1; say "bad-knob=$?"
 bash $pb/user.sh >/dev/null; say "user=$?"
@@ -31,6 +32,7 @@ owner bash $pb/user.sh >/dev/null 2>&1; say "user-as-root=$?"
 case $id in
   kde-plasma) dm=sddm; greeter='sddm-greeter' ;;
   gnome) dm=gdm3; greeter='gnome-shell --mode=gdm' ;;
+  i3) dm=lightdm; greeter='lightdm-gtk-greeter' ;;
   *) dm=greetd; greeter='^tuigreet' ;;
 esac
 owner systemctl start $dm
