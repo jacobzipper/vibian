@@ -20,6 +20,7 @@ const usage = `vibian: an OS run by your coding agent
   vibian log [tail|show <id>|search <words>]
   vibian undo [<ledger-id>|--last|--to <snapshot>]
   vibian doctor [--json]              health check
+  vibian mcp                          the vibian-system MCP server (stdio)
   vibian version
 `
 
@@ -45,6 +46,8 @@ func main() {
 		err = cmdUndo(args)
 	case "doctor":
 		err = cmdDoctor(args)
+	case "mcp":
+		err = cmdMCP(args)
 	case "version", "--version":
 		fmt.Println("vibian", version)
 	case "help", "-h", "--help":

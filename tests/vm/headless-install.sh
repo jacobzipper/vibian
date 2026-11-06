@@ -117,12 +117,18 @@ ssh_vm 'set -x
   touch ~/cli-test
   vibian log add "cli test change" --files /etc/vibian-cli-test,~/cli-test --gotcha "only a test"
   vibian log tail
+  # the vibian-system MCP server, as a harness would start it
+  for m in "\"initialize\",\"params\":{\"protocolVersion\":\"2025-06-18\",\"capabilities\":{},\"clientInfo\":{\"name\":\"t\",\"version\":\"1\"}}" \
+           "\"tools/list\"" "\"tools/call\",\"params\":{\"name\":\"ledger_tail\",\"arguments\":{\"count\":1}}"; do
+    echo "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":$m}"
+  done | vibian mcp --agent test | python3 -c "import json,sys; r=[json.loads(l) for l in sys.stdin]; print(\"mcp-tools=%d\" % len(r[1][\"result\"][\"tools\"])); print(\"mcp-ledger=\" + r[2][\"result\"][\"content\"][0][\"text\"].replace(chr(10), \" \"))"
   vibian undo --last --yes
   echo "undo-root=$(test -e /etc/vibian-cli-test && echo kept || echo reverted)"
   echo "undo-home=$(test -e ~/cli-test && echo kept || echo reverted)"
   vibian log tail 1' 2>&1 | tee cli.log
 for want in 'tty1=.*vibian' 'nopasswd=yes' 'doctor-rootfs=ok' 'doctor-snapper=ok' 'ledger-subvol=subvol=/@var_lib_vibian' 'kit=ok' \
             'motd=/etc/update-motd.d/00-vibian /etc/update-motd.d/9' 'issue=Vibian' 'nm-wired=ethernet:connected' 'wifi=\(connected\)|wifi=no-hwsim' \
+            'mcp-tools=7' 'mcp-ledger=.*cli test change' \
             'L-0001 recorded \(snapshots root' 'undo-root=reverted' 'undo-home=reverted' 'undo L-0001'; do
   grep -qE -- "$want" cli.log || { echo "MISSING (cli): $want"; fail=1; }
 done

@@ -35,7 +35,7 @@ Description: Vibian base system
  from GRUB, and a visible boot menu. NetworkManager runs networking so
  wifi can be joined from onboarding.
 CTL
-printf '%s\n' /etc/default/grub.d/90-vibian.cfg /etc/dracut.conf.d/90-vibian.conf /etc/profile.d/vibian-onboard.sh /etc/update-motd.d/00-vibian /etc/netplan/01-vibian-networkmanager.yaml > "$pkg/DEBIAN/conffiles"
+printf '%s\n' /etc/default/grub.d/90-vibian.cfg /etc/dracut.conf.d/90-vibian.conf /etc/profile.d/vibian-onboard.sh /etc/update-motd.d/00-vibian /etc/netplan/01-vibian-networkmanager.yaml /etc/opencode/opencode.json > "$pkg/DEBIAN/conffiles"
 # Ubuntu's login banner ("Welcome to Ubuntu", "This system has been
 # minimized") is moved aside, not edited, so removing vibian-base puts it
 # back. /etc/issue{,.net} are replaced; they aren't conffiles here because

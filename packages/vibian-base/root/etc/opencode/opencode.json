@@ -1,0 +1,11 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "servers": {
+      "vibian-system": {
+        "type": "local",
+        "command": ["/usr/bin/vibian", "mcp", "--agent", "opencode"]
+      }
+    }
+  }
+}
