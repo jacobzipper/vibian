@@ -95,6 +95,23 @@ ssh_vm 'set -x
   test -f /usr/share/vibian/agent/skills/recovery/SKILL.md && echo kit=ok
   echo "motd=$(run-parts --lsbsysinit --test /etc/update-motd.d | tr "\n" " ")"
   echo "issue=$(head -c 6 /etc/issue)"
+  echo "nm-wired=$(nmcli -t -f TYPE,STATE device | grep -m1 ^ethernet:)"
+  # wifi: a virtual radio pair, a hotspot on one, and the user (no sudo, via
+  # the polkit rule) joins it from the other, as onboarding would
+  if s modprobe mac80211_hwsim radios=2 2>/dev/null; then
+    sleep 3
+    s nmcli device wifi hotspot ifname wlan1 ssid vibian-test password correct-horse >/dev/null
+    for i in 1 2 3 4 5 6; do
+      nmcli device wifi rescan ifname wlan0 2>/dev/null; sleep 5
+      nmcli -t -f SSID device wifi list ifname wlan0 | grep -qx vibian-test && break
+    done
+    nmcli device wifi connect vibian-test password correct-horse ifname wlan0 >/dev/null 2>&1 &&
+      echo "wifi=$(nmcli -t -f GENERAL.STATE device show wlan0 | cut -d" " -f2-)"
+    s nmcli connection delete vibian-test Hotspot >/dev/null 2>&1
+    s modprobe -r mac80211_hwsim
+  else
+    echo "wifi=no-hwsim"
+  fi
   vibian snap "cli test"
   sudo touch /etc/vibian-cli-test
   touch ~/cli-test
@@ -105,7 +122,7 @@ ssh_vm 'set -x
   echo "undo-home=$(test -e ~/cli-test && echo kept || echo reverted)"
   vibian log tail 1' 2>&1 | tee cli.log
 for want in 'tty1=.*vibian' 'nopasswd=yes' 'doctor-rootfs=ok' 'doctor-snapper=ok' 'ledger-subvol=subvol=/@var_lib_vibian' 'kit=ok' \
-            'motd=/etc/update-motd.d/00-vibian /etc/update-motd.d/9' 'issue=Vibian' \
+            'motd=/etc/update-motd.d/00-vibian /etc/update-motd.d/9' 'issue=Vibian' 'nm-wired=ethernet:connected' 'wifi=\(connected\)|wifi=no-hwsim' \
             'L-0001 recorded \(snapshots root' 'undo-root=reverted' 'undo-home=reverted' 'undo L-0001'; do
   grep -qE -- "$want" cli.log || { echo "MISSING (cli): $want"; fail=1; }
 done

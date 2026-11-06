@@ -1,0 +1,5 @@
+# Vibian: NetworkManager runs networking, so onboarding and the agent can
+# join wifi with nmcli. Wired interfaces from the installer keep working.
+network:
+  version: 2
+  renderer: NetworkManager

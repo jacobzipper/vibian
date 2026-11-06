@@ -3,45 +3,43 @@ package harness
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 )
 
-// Harnesses parse SKILL.md frontmatter as YAML and drop a skill whose
-// frontmatter doesn't parse (pi rejected an unquoted "Vibian: resolution").
-func TestKitSkillFrontmatter(t *testing.T) {
-	files, _ := filepath.Glob("../../agent-kit/skills/*/SKILL.md")
-	if len(files) == 0 {
-		t.Fatal("no skills found")
+// Every shipped skill must load in every harness: Agent Skills frontmatter
+// with a name matching its directory and a description saying when to use it,
+// and AGENTS.md must list it.
+func TestKitSkills(t *testing.T) {
+	kit := filepath.Join("..", "..", "agent-kit")
+	brief, err := os.ReadFile(filepath.Join(kit, "AGENTS.md"))
+	if err != nil {
+		t.Fatal(err)
 	}
-	for _, f := range files {
-		b, err := os.ReadFile(f)
+	dirs, _ := filepath.Glob(filepath.Join(kit, "skills", "*"))
+	if len(dirs) == 0 {
+		t.Fatal("no skills")
+	}
+	front := regexp.MustCompile(`(?s)\A---\nname: ([a-z0-9-]+)\ndescription: "((?:[^"\\\n]|\\.)+)"\n---\n`)
+	for _, d := range dirs {
+		id := filepath.Base(d)
+		b, err := os.ReadFile(filepath.Join(d, "SKILL.md"))
 		if err != nil {
-			t.Fatal(err)
-		}
-		parts := strings.SplitN(string(b), "---\n", 3)
-		if len(parts) != 3 || parts[0] != "" {
-			t.Errorf("%s: no --- frontmatter at the top", f)
+			t.Errorf("%s: %v", id, err)
 			continue
 		}
-		keys := map[string]string{}
-		for _, ln := range strings.Split(strings.TrimSpace(parts[1]), "\n") {
-			k, v, ok := strings.Cut(ln, ": ")
-			if !ok {
-				t.Errorf("%s: frontmatter line isn't `key: value`: %q", f, ln)
-				continue
-			}
-			quoted := strings.HasPrefix(v, `"`) && strings.HasSuffix(v, `"`)
-			if !quoted && (strings.Contains(v, ": ") || strings.Contains(v, " #")) {
-				t.Errorf("%s: %s needs quotes (contains ': ' or ' #')", f, k)
-			}
-			keys[k] = v
+		m := front.FindSubmatch(b)
+		switch {
+		case m == nil:
+			t.Errorf("%s: SKILL.md must start with name/description frontmatter", id)
+		case string(m[1]) != id:
+			t.Errorf("%s: name is %q", id, m[1])
+		case len(m[2]) > 1024 || !strings.Contains(string(m[2]), "Use "):
+			t.Errorf("%s: description must be under 1024 chars and say when to use it", id)
 		}
-		if keys["name"] != filepath.Base(filepath.Dir(f)) {
-			t.Errorf("%s: name %q doesn't match its directory", f, keys["name"])
-		}
-		if keys["description"] == "" {
-			t.Errorf("%s: no description", f)
+		if !strings.Contains(string(brief), "`"+id+"`") {
+			t.Errorf("%s: not listed in AGENTS.md", id)
 		}
 	}
 }

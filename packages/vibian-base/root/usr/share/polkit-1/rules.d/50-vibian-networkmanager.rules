@@ -1,0 +1,7 @@
+// Vibian: the machine's owner (sudo group) manages networking without a
+// password, from tty1, ssh or the agent.
+polkit.addRule(function (action, subject) {
+  if (action.id.indexOf("org.freedesktop.NetworkManager.") == 0 && subject.isInGroup("sudo")) {
+    return polkit.Result.YES;
+  }
+});

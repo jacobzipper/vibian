@@ -32,5 +32,9 @@ autoinstall:
     - inotify-tools
     - git
     - curl
+    # vibian-base runs networking with NetworkManager (wifi in onboarding)
+    - network-manager
+    - wpasupplicant
+    - polkitd
   late-commands:
     - bash /cdrom/vibian/btrfs-layout.sh /target

@@ -41,8 +41,9 @@ vibian apply github:someone/their-rice     # their setup, rebuilt by your agent,
 | Harness install from onboarding (7 agents) | 🚧 pi and opencode installed and handed over from onboarding in the VM, driven by keyboard ([`tests/vm/drive.sh`](tests/vm/drive.sh)). All 7 official installers run unattended in the VM and every flag Vibian passes exists in their `--help`. Logging in to a real account is next |
 | Agent powers | ✅ "Everything" runs each agent in its no-prompts mode with passwordless sudo. "Ask first" makes every agent ask before commands and edits (opencode through permission rules, OpenClaw through its exec policy). pi has no approval prompts, and onboarding says so |
 | Vibian login banner | ✅ replaces Ubuntu's welcome and "minimized" text on tty1 and ssh, moved aside so removing `vibian-base` brings them back |
-| 4 of 14 OS skills | ✅ packages, drivers-hardware, recovery, displays ([`agent-kit`](agent-kit)) |
-| Remaining 10 OS skills + computer-use MCP | ⏳ |
+| 12 of 14 OS skills | ✅ packages, drivers-hardware, displays, networking, audio-bluetooth, power, users-security, services, recovery, gaming, local-ai, dev-env ([`agent-kit`](agent-kit)) |
+| Wifi in onboarding | ✅ NetworkManager; pick a network and type its password on the Network step |
+| computer-use and export-apply skills, desktop-playbooks, computer-use MCP | ⏳ |
 | 10 desktop playbooks | ⏳ |
 | Examples (Bloomberg desk, startup mission control, grandma mode) | ⏳ |
 

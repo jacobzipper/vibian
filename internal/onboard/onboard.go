@@ -14,6 +14,7 @@ import (
 
 	"github.com/jacobzipper/vibian/internal/doctor"
 	"github.com/jacobzipper/vibian/internal/harness"
+	"github.com/jacobzipper/vibian/internal/wifi"
 )
 
 type step int
@@ -54,6 +55,11 @@ type Result struct {
 }
 
 type checksMsg []doctor.Check
+type wifiMsg struct {
+	dev  string
+	nets []wifi.Network
+	err  error
+}
 type execMsg struct {
 	what string
 	err  error
@@ -65,6 +71,9 @@ type Model struct {
 	cursor   int
 	checks   []doctor.Check
 	checking bool
+	wifiDev  string // the wifi device NetworkManager joins networks with
+	scanning bool
+	nets     []wifi.Network
 	spin     spinner.Model
 	harness  harness.Harness
 	busy     string
@@ -94,6 +103,20 @@ func (m Model) Init() tea.Cmd { return m.spin.Tick }
 
 func runChecks() tea.Msg { return checksMsg(doctor.Run()) }
 
+func scanWifi() tea.Msg {
+	dev := wifi.Device()
+	if dev == "" {
+		return wifiMsg{}
+	}
+	nets, err := wifi.Scan(dev)
+	return wifiMsg{dev: dev, nets: nets, err: err}
+}
+
+// picking reports whether the Network step is showing the wifi list.
+func (m Model) picking() bool {
+	return m.step == stepNetwork && !m.checking && !m.ok("dns") && len(m.nets) > 0
+}
+
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -104,6 +127,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	case checksMsg:
 		m.checks, m.checking = msg, false
+		if m.step == stepNetwork && !m.ok("dns") {
+			m.scanning = true
+			return m, scanWifi
+		}
+	case wifiMsg:
+		m.scanning, m.wifiDev, m.nets = false, msg.dev, msg.nets
+		if msg.err != nil {
+			m.err = fmt.Errorf("wifi scan failed: %v", msg.err)
+		}
+		m.cursor = min(m.cursor, max(len(m.nets)-1, 0))
 	case execMsg:
 		return m.afterExec(msg)
 	case tea.KeyMsg:
@@ -131,6 +164,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.step == stepInstall && m.noLogin {
 				return m.afterExec(execMsg{"login", nil})
 			}
+			if m.step == stepNetwork {
+				m.step, m.err = stepHardware, nil
+			}
 		case "r":
 			if m.step == stepNetwork || m.step == stepHardware {
 				m.checking = true
@@ -149,6 +185,10 @@ func (m Model) options() int {
 		return len(harness.All)
 	case stepPowers:
 		return 2
+	case stepNetwork:
+		if m.picking() {
+			return len(m.nets)
+		}
 	}
 	return 1
 }
@@ -160,6 +200,15 @@ func (m Model) next() (tea.Model, tea.Cmd) {
 		m.step, m.checking = stepNetwork, true
 		return m, runChecks
 	case stepNetwork:
+		if m.picking() {
+			n := m.nets[m.cursor]
+			m.busy = "wifi"
+			what := "Joining " + n.SSID
+			if n.Security != "" {
+				what += ". Type its password when asked"
+			}
+			return m, tea.ExecProcess(announce(wifi.ConnectCmd(m.wifiDev, n.SSID), what), func(err error) tea.Msg { return execMsg{"wifi", err} })
+		}
 		m.step = stepHardware
 	case stepHardware:
 		m.step, m.cursor = stepAgent, 0
@@ -199,6 +248,13 @@ func (m Model) login() (tea.Model, tea.Cmd) {
 func (m Model) afterExec(msg execMsg) (tea.Model, tea.Cmd) {
 	m.busy = ""
 	m.noLogin = false
+	if msg.what == "wifi" {
+		if msg.err != nil {
+			m.err = fmt.Errorf("couldn't join that network (%v). Pick it again to retry", msg.err)
+		}
+		m.checking = true
+		return m, runChecks
+	}
 	if msg.err != nil && msg.what == "login" {
 		// cancelling a provider picker isn't fatal: most harnesses can log
 		// in from inside the session too
@@ -268,11 +324,24 @@ func (m Model) View() string {
 	case stepNetwork:
 		b.WriteString(bold.Render("Network") + "\n\n")
 		b.WriteString(m.checkList("network", "dns"))
-		if !m.checking && !m.ok("dns") {
-			b.WriteString("\nThe agent needs the internet. Plug in a cable, or set up wifi with\n" +
-				"`sudo nmtui` (if installed) or netplan, then press r.\n")
+		switch {
+		case m.checking || m.ok("dns"):
+			b.WriteString("\n" + dim.Render("enter: continue  ·  r: check again  ·  q: quit"))
+		case m.scanning:
+			b.WriteString("\n" + m.spin.View() + " looking for wifi…\n")
+		case len(m.nets) > 0:
+			b.WriteString("\nThe agent needs the internet. Plug in a cable or pick a wifi network:\n\n")
+			b.WriteString(m.wifiList())
+			b.WriteString("\n" + dim.Render("↑/↓ pick  ·  enter: join  ·  r: scan again  ·  s: skip, no internet  ·  q: quit"))
+		case m.wifiDev != "":
+			b.WriteString("\nThe agent needs the internet. No wifi networks in range yet:\n" +
+				"move closer or plug in a cable, then press r.\n")
+			b.WriteString("\n" + dim.Render("r: scan again  ·  s: skip, no internet  ·  q: quit"))
+		default:
+			b.WriteString("\nThe agent needs the internet. Plug in a cable, then press r.\n" +
+				"(No wifi card was found. The agent can set one up later.)\n")
+			b.WriteString("\n" + dim.Render("r: check again  ·  s: skip, no internet  ·  q: quit"))
 		}
-		b.WriteString("\n" + dim.Render("enter: continue  ·  r: check again  ·  q: quit"))
 	case stepHardware:
 		b.WriteString(bold.Render("Hardware and system") + "\n\n")
 		b.WriteString(m.checkList("boot", "secure-boot", "rootfs", "snapper", "grub-btrfs", "gpu", "battery", "disk", "units"))
@@ -359,6 +428,35 @@ func (m Model) View() string {
 		w = m.width - 4
 	}
 	return frame.Width(w).Render(b.String()) + "\n"
+}
+
+func (m Model) wifiList() string {
+	var b strings.Builder
+	for i, n := range m.nets {
+		if i == 12 {
+			b.WriteString(dim.Render(fmt.Sprintf("  … %d more, move closer to see them stronger", len(m.nets)-i)) + "\n")
+			break
+		}
+		lock := "     "
+		if n.Security != "" {
+			lock = "lock "
+		}
+		line := fmt.Sprintf("%-32s %s %s%3d%%", n.SSID, bars(n.Signal), lock, n.Signal)
+		if n.InUse {
+			line += "  connected"
+		}
+		if i == m.cursor {
+			b.WriteString(sel.Render("› "+line) + "\n")
+		} else {
+			b.WriteString("  " + line + "\n")
+		}
+	}
+	return b.String()
+}
+
+func bars(signal int) string {
+	full := (signal + 24) / 25 // 1-25 → 1 bar … 76-100 → 4
+	return strings.Repeat("▮", full) + dim.Render(strings.Repeat("▯", 4-full))
 }
 
 func indent(s, pre string) string {

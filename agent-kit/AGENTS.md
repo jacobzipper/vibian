@@ -20,7 +20,7 @@ This machine runs **Vibian** (Ubuntu 26.04 underneath). Its owner picked you to 
 | ledger | `/var/lib/vibian/ledger/ledger.md` (git history next to it) |
 | snapshots | `snapper -c root list`, `snapper -c home list` |
 | health | `vibian doctor` (`--json` for machine-readable) |
-| your skills | `packages`, `drivers-hardware`, `displays`, `recovery`. Read the matching skill before working in its area |
+| your skills | `packages`, `drivers-hardware`, `displays`, `networking`, `audio-bluetooth`, `power`, `users-security`, `services`, `recovery`, `gaming`, `local-ai`, `dev-env`. Read the matching skill before working in its area |
 | this brief | `/usr/share/vibian/agent/AGENTS.md` (managed by Vibian; don't edit) |
 
 ## How to behave
