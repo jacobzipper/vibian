@@ -32,6 +32,7 @@ The scripts take their choices from `VIBIAN_*` environment variables (the knobs)
 - The user's own settings go where the playbook says, and re-runs never touch them:
   - Hyprland: `~/.config/hypr/local.conf`.
   - Sway: `~/.config/sway/config.d/`.
+  - niri: `~/.config/niri/local.kdl` (run `niri validate` after editing).
   - KDE Plasma: System Settings, or `kwriteconfig6`; never rewrite Plasma's rc files whole.
   - GNOME: Settings, or `gsettings`/`dconf` (a binary database, not files).
 - Switching desktops: run the new playbook. Its `system.sh` disables the other login screens, so only one is ever enabled. Remove the old desktop only if the user asks, with `vibian undo <ledger-id>` or the playbook's Undo section.
@@ -43,3 +44,4 @@ Do it by hand the same way: archive packages first, configs in `~/.config` with 
 - Don't start a compositor inside the user's SSH or TTY session to "test" it. `verify.sh` checks configs without a screen.
 - Don't restart the display manager while the user is logged in graphically without saying so first: it ends their session.
 - A desktop's own versions move fast. Prefer the Ubuntu archive; a PPA is opt-in, logged with the reason.
+- niri isn't in Ubuntu 26.04's archive. Its playbook builds the upstream release pinned in `system.sh` from source, which takes 5 to 20 minutes, so tell the user before you start it.
