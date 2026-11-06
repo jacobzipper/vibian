@@ -194,10 +194,13 @@ for want in 'set=0 mode=scoped' 'plain-sudo=no' 'plain=0 owner=root' 'nowhy=1' '
             'rerun=0 gone=yes' 'once=3' 'deny=0 left=0' 'ledger-cmd=1 ledger-ok=1 ledger-snap=1' 'restored=root'; do
   grep -qE -- "^$want" scoped.log || { echo "MISSING (scoped): $want"; fail=1; }
 done
-echo "== desktop playbook"
-ssh_vm 'bash -s' < "$here/desktop-playbook.sh" 2>&1 | tee playbook.log
-for want in 'listed=1' 'show=0' 'system=0' 'bad-knob=1' 'user=0' 'rerun=0 new-baks=0' 'verify=0' 'user-as-root=1' 'greeter=up vt=tty7'; do
-  grep -qE -- "^$want" playbook.log || { echo "MISSING (playbook): $want"; fail=1; }
+echo "== desktop playbooks"
+: > playbook.log
+for id in hyprland sway; do
+  ssh_vm "bash -s $id" < "$here/desktop-playbook.sh" 2>&1 | tee -a playbook.log
+  for want in 'listed=1' 'show=0' 'system=0' 'bad-knob=1' 'user=0' 'rerun=0 new-baks=0' 'verify=0' 'user-as-root=1' 'greeter=up vt=tty7'; do
+    grep -qE -- "^$id\.$want" playbook.log || { echo "MISSING (playbook $id): $want"; fail=1; }
+  done
 done
 [ $fail = 0 ] || { echo "VM-TEST-FAIL"; exit 1; }
 
