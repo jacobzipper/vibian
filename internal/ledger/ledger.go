@@ -34,6 +34,8 @@ type Entry struct {
 	Packages  []string
 	Files     []string
 	Undo      string
+	Command   string // a root command run through `vibian sudo`
+	Result    string // how that command ended
 	Gotchas   []string
 	Raw       string
 }
@@ -50,6 +52,10 @@ func (e Entry) Markdown() string {
 	line("snapshots", e.Snapshots)
 	line("packages", strings.Join(e.Packages, ", "))
 	line("files", strings.Join(e.Files, ", "))
+	if e.Command != "" {
+		line("command", "`"+e.Command+"`")
+	}
+	line("result", e.Result)
 	if e.Undo != "" {
 		line("undo", e.Undo)
 	} else if e.Snapshots != "" {
@@ -167,6 +173,10 @@ func All() ([]Entry, error) {
 			cur.Files = splitList(v)
 		case "undo":
 			cur.Undo = v
+		case "command":
+			cur.Command = strings.TrimSuffix(strings.TrimPrefix(v, "`"), "`")
+		case "result":
+			cur.Result = v
 		case "gotcha":
 			cur.Gotchas = append(cur.Gotchas, v)
 		}

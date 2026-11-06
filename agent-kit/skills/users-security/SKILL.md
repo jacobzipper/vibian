@@ -9,6 +9,7 @@ description: "Users, groups, sudo and the agent's powers, SSH keys and the SSH s
 The agent runs as the owner's user. `vibian powers` decides how sudo behaves for it:
 - `vibian powers root` (**Everything**): `/etc/sudoers.d/vibian-agent` gives the user `NOPASSWD: ALL`. Snapshots and the ledger are the safety net.
 - `vibian powers confirm` (**Ask first**): that file is removed, so sudo asks for the password, and harnesses that can ask before shell commands and edits are switched to asking.
+- `vibian powers scoped` (**Scoped**): that file only lets the user run `/usr/bin/vibian sudo-root`. Use `vibian sudo --why "reason" -- cmd args` for each root command: one real program, no `bash -c` or pipes (run `tee` or `install` through it to write a root file). Exit 3 means it's on the risky list; give the owner the printed `sudo vibian approve <id>` line, wait for them, then rerun the identical command from the same directory. `sudo vibian approve` with no id lists what's waiting.
 Only the owner changes this, from their own terminal. Never edit `/etc/sudoers.d/vibian-agent` yourself, and never add NOPASSWD rules of your own. Edit sudoers only with `visudo -f`.
 
 ## Users and groups

@@ -14,7 +14,9 @@ const usage = `vibian: an OS run by your coding agent
 
   vibian onboard                      first-boot setup (re-runnable)
   vibian agent [run|set <id>|list]    launch or pick your agent
-  vibian powers [root|confirm]        change what the agent may do
+  vibian powers [root|confirm|scoped] change what the agent may do
+  vibian sudo --why "…" -- cmd …      (scoped powers) run one command as root, logged
+  vibian approve [<id>|--deny <id>]   OK a risky command the agent asked to run
   vibian snap "why"                   snapshot root and home before a change
   vibian log add "summary" [flags]    record a change (closes the last snap)
   vibian log [tail|show <id>|search <words>]
@@ -61,6 +63,12 @@ func main() {
 		err = cmdMCP(args)
 	case "hook":
 		err = cmdHook(args)
+	case "sudo":
+		err = cmdSudo(args)
+	case "sudo-root":
+		err = cmdSudoRoot(args)
+	case "approve":
+		err = cmdApprove(args)
 	case "version", "--version":
 		fmt.Println("vibian", version)
 	case "help", "-h", "--help":
@@ -68,6 +76,9 @@ func main() {
 	default:
 		fmt.Fprintf(os.Stderr, "vibian: unknown command %q\n\n%s", cmd, usage)
 		os.Exit(2)
+	}
+	if code, ok := err.(exitCode); ok {
+		os.Exit(int(code))
 	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "vibian:", strings.TrimSpace(err.Error()))

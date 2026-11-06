@@ -150,6 +150,8 @@ vibian apply <github:user/repo|path> [--dry-run|--scripts-only]   # hand a rice 
 vibian playbooks [list|show <id>]
 vibian mcp [computer] [--agent X]  # MCP servers on stdio: vibian-system, vibian-computer
 vibian powers [root|confirm|scoped]    # change the privilege mode later
+vibian sudo --why "…" -- cmd …     # scoped powers: one root command, logged; risky ones need…
+vibian approve [<id>|--deny <id>]  # …the owner's OK (their own sudo password)
 ```
 
 ### 4.4 Agent kit (harness-agnostic)
@@ -205,7 +207,11 @@ vibian powers [root|confirm|scoped]    # change the privilege mode later
 ### 4.5 Privilege modes (picked at onboarding, default `root`)
 - `root`: NOPASSWD sudo for the user, and the agent runs in its harness's auto mode. The safety net is snapshots plus the ledger.
 - `confirm`: sudo works, but a polkit-style desktop or terminal prompt fires for a destructive list: disk tools, `rm -rf` outside home, purging core packages, bootloader and fstab edits.
-- `scoped`: the agent gets `vibian sudo -- <cmd> --why "<reason>"` instead of sudo. Everything is logged to the ledger, and the risky list needs a human OK.
+- `scoped`: the agent gets `vibian sudo --why "<reason>" -- <cmd>` instead of sudo. Everything is logged to the ledger, and the risky list needs a human OK.
+  - The only sudoers rule is `user ALL=(root) NOPASSWD: /usr/bin/vibian sudo-root *`; the root side accepts exactly `sudo-root --why R --agent A -- cmd…`.
+  - Risky: disk and partition tools, bootloader and Secure Boot tools, reboot/poweroff, user and sudo changes (including `vibian` itself), `btrfs`/`snapper` writes, `rm -r` or recursive chmod/chown outside home and the temp dirs, any argument under fstab, crypttab, GRUB, /boot, sudoers, shadow, PAM, snapper or Vibian's own state, block devices, apt/dpkg removals that take an essential/required/important or Vibian-core package or more than 25 packages, `--force`, and anything that runs code it can't see (shells, interpreters, env, xargs, `find -exec`) or a program outside the root-owned system dirs.
+  - A risky command exits 3 and leaves a request in /run/vibian/sudo. The owner runs `sudo vibian approve <id>` with their own password, and the OK is good for one run of that exact command, from that directory, within 30 minutes. Approved runs get a snapshot pair.
+  - This catches an agent's mistakes. It is not a sandbox: the agent still runs as the owner's user.
 
 ### 4.6 The ledger
 - **Storage:** `/var/lib/vibian/ledger/` as a git repo, with `ledger.md` (append-only entries) and `entries/<id>.md` for long ones. The markdown is the source of truth: any harness or human can `grep` it.

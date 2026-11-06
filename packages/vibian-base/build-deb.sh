@@ -3,7 +3,7 @@
 # carries: the vibian CLI and onboarding TUI, the agent kit (AGENTS.md and
 # skills), dracut's snapshot-boot overlay and GRUB defaults. Needs Go 1.24+.
 set -euo pipefail
-VERSION=0.4.0
+VERSION=0.5.0
 here=$(cd "$(dirname "$0")" && pwd)
 out=${1:?usage: build-deb.sh OUT_DIR}
 mkdir -p "$out"
@@ -78,6 +78,8 @@ if [ "$1" = configure ]; then
   if [ -z "$2" ] || dpkg --compare-versions "$2" lt 0.4.0; then
     systemctl disable systemd-networkd-wait-online.service systemd-networkd.service systemd-networkd.socket >/dev/null 2>&1 || true
   fi
+  # /dev/uinput to the user at the seat (computer use), without a reboot
+  udevadm control --reload-rules >/dev/null 2>&1 && udevadm trigger --sysname-match=uinput >/dev/null 2>&1 || true
   dracut --regenerate-all --force
   if [ -e /boot/grub/grub.cfg ] && command -v update-grub >/dev/null; then
     update-grub || true

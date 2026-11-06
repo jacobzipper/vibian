@@ -15,6 +15,9 @@ const (
 	PowersRoot Powers = "root"
 	// PowersConfirm: sudo asks for your password; the harness asks before acting.
 	PowersConfirm Powers = "confirm"
+	// PowersScoped: no sudo; the agent asks for root one command at a time
+	// with `vibian sudo`, and risky commands wait for your OK.
+	PowersScoped Powers = "scoped"
 )
 
 // Config is the user's agent choice, in ~/.config/vibian/agent.json.

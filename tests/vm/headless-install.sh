@@ -186,6 +186,16 @@ for want in 'cu-apt=0' 'uinput-rule=present' \
 done
 [ $fail = 0 ] || { echo "VM-TEST-FAIL"; exit 1; }
 
+# Scoped powers: vibian sudo, the risky list and the owner's approval.
+echo "== scoped powers"
+ssh_vm 'bash -s' < "$here/scoped-powers.sh" 2>&1 | tee scoped.log
+for want in 'set=0 mode=scoped' 'plain-sudo=no' 'plain=0 owner=root' 'nowhy=1' 'false=1' 'mkdir=0' 'risky=3' 'id=[0-9a-f]{8}' \
+            'self-approve=1' 'sudo-approve=3' 'direct=3' 'wrapper=3' 'own-program=3' 'listed=[1-9]' 'approve=0' \
+            'rerun=0 gone=yes' 'once=3' 'deny=0 left=0' 'ledger-cmd=1 ledger-ok=1 ledger-snap=1' 'restored=root'; do
+  grep -qE -- "^$want" scoped.log || { echo "MISSING (scoped): $want"; fail=1; }
+done
+[ $fail = 0 ] || { echo "VM-TEST-FAIL"; exit 1; }
+
 # Snapshot boot: take a snapshot, break the system, then pick the snapshot in
 # the GRUB menu with the arrow keys (like a person would) and check we're back
 # in the pre-break state.

@@ -184,7 +184,7 @@ func (m Model) options() int {
 	case stepAgent:
 		return len(harness.All)
 	case stepPowers:
-		return 2
+		return 3
 	case stepNetwork:
 		if m.picking() {
 			return len(m.nets)
@@ -225,7 +225,7 @@ func (m Model) next() (tea.Model, tea.Cmd) {
 		}
 		return m.login()
 	case stepPowers:
-		m.powers = []harness.Powers{harness.PowersRoot, harness.PowersConfirm}[m.cursor]
+		m.powers = []harness.Powers{harness.PowersRoot, harness.PowersConfirm, harness.PowersScoped}[m.cursor]
 		m.busy = "powers"
 		c := exec.Command(m.self, "powers", string(m.powers))
 		return m, tea.ExecProcess(announce(c, "Setting the agent's powers (sudo may ask for your password)"), func(err error) tea.Msg { return execMsg{"powers", err} })
@@ -396,6 +396,7 @@ func (m Model) View() string {
 		opts := []struct{ name, desc string }{
 			{"Everything (recommended)", "Passwordless sudo and no permission prompts.\nSnapshots and the ledger mean any change can be undone."},
 			{"Ask first", "sudo asks for your password and the agent asks before acting."},
+			{"Scoped", "No sudo. The agent runs root commands one at a time with `vibian sudo`;\neach is logged, and risky ones (disks, boot, removing core packages)\nwait for you to run `sudo vibian approve`."},
 		}
 		for i, o := range opts {
 			if i == m.cursor {

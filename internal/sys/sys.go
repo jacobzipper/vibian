@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"syscall"
 )
 
 // Output runs a command and returns its trimmed stdout. stderr is folded into
@@ -50,6 +51,17 @@ func Run(argv ...string) error {
 func Has(name string) bool {
 	_, err := exec.LookPath(name)
 	return err == nil
+}
+
+// RootOwned reports whether path is owned by root and writable by no one
+// else.
+func RootOwned(path string) bool {
+	st, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+	sys, ok := st.Sys().(*syscall.Stat_t)
+	return ok && sys.Uid == 0 && st.Mode().Perm()&0o022 == 0
 }
 
 // ReadFile returns a file's trimmed contents, or "" if it can't be read.

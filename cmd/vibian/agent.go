@@ -260,22 +260,28 @@ func applyPowers(username string, p harness.Powers) error {
 	const file = "/etc/sudoers.d/vibian-agent"
 	switch p {
 	case harness.PowersRoot:
-		rule := fmt.Sprintf("# vibian powers=root: snapshots and the ledger are the safety net\n%s ALL=(ALL) NOPASSWD: ALL\n", username)
-		tmp, err := os.CreateTemp("", "vibian-sudoers")
-		if err != nil {
-			return err
-		}
-		defer os.Remove(tmp.Name())
-		tmp.WriteString(rule)
-		tmp.Close()
-		if _, err := sys.Output("visudo", "-cqf", tmp.Name()); err != nil {
-			return err
-		}
-		_, err = sys.RootOutput("install", "-m", "0440", "-o", "root", "-g", "root", tmp.Name(), file)
-		return err
+		return installSudoers(file, fmt.Sprintf("# vibian powers=root: snapshots and the ledger are the safety net\n%s ALL=(ALL) NOPASSWD: ALL\n", username))
+	case harness.PowersScoped:
+		return installSudoers(file, fmt.Sprintf("# vibian powers=scoped: the agent asks for root one command at a time\n%s ALL=(root) NOPASSWD: %s sudo-root *\n", username, selfBin()))
 	case harness.PowersConfirm:
 		_, err := sys.RootOutput("rm", "-f", file)
 		return err
 	}
-	return fmt.Errorf("unknown powers %q (root or confirm; scoped comes in M2)", p)
+	return fmt.Errorf("unknown powers %q (root, confirm or scoped)", p)
+}
+
+// installSudoers checks a sudoers drop-in with visudo, then installs it.
+func installSudoers(file, rule string) error {
+	tmp, err := os.CreateTemp("", "vibian-sudoers")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(tmp.Name())
+	tmp.WriteString(rule)
+	tmp.Close()
+	if _, err := sys.Output("visudo", "-cqf", tmp.Name()); err != nil {
+		return err
+	}
+	_, err = sys.RootOutput("install", "-m", "0440", "-o", "root", "-g", "root", tmp.Name(), file)
+	return err
 }

@@ -9,5 +9,6 @@ cat <<'T'
   vibian log tail      what changed lately, and who changed it
   vibian undo --last   put the last change back
   vibian doctor        check this machine
+  vibian approve       commands the agent is waiting for you to OK (scoped powers)
 
 T
