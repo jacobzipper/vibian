@@ -17,7 +17,9 @@ It sets up your drivers, wifi and desktop, and **every change it makes can be un
 [![7 agents](https://img.shields.io/badge/agents-7-f6d57e?style=for-the-badge&labelColor=16121f)](#works-with-the-agent-you-already-use)
 [![Harness install check](https://img.shields.io/github/actions/workflow/status/jacobzipper/vibian/harness-install.yml?style=for-the-badge&label=agent%20installs&labelColor=16121f)](https://github.com/jacobzipper/vibian/actions/workflows/harness-install.yml)
 [![Status: pre-alpha](https://img.shields.io/badge/status-pre--alpha-ece1f0?style=for-the-badge&labelColor=16121f)](#status)
+[![Download the ISO](https://img.shields.io/github/v/release/jacobzipper/vibian?include_prereleases&style=for-the-badge&label=download&color=9d7cd8&labelColor=16121f)](https://github.com/jacobzipper/vibian/releases)
 
+**[<kbd> <br> Download <br> </kbd>](#download)**
 **[<kbd> <br> How it works <br> </kbd>](#how-it-works)**
 **[<kbd> <br> Undo everything <br> </kbd>](#undo-everything)**
 **[<kbd> <br> Desktops <br> </kbd>](#ten-desktops-to-start-from)**
@@ -51,6 +53,18 @@ vibian history                                 # what changed, when, and which a
 vibian undo L-0042                             # put one change back
 vibian undo --to 7                             # or roll the whole machine back
 ```
+
+## Download
+
+**Vibian 0.7.0 is the first release you can install**, for **amd64** (Intel and AMD PCs) and **arm64** (ARM machines with UEFI, and ARM VMs like UTM or Parallels on Apple Silicon). Get the ISO from **[Releases](https://github.com/jacobzipper/vibian/releases)**.
+
+GitHub caps release files at 2 GiB, so each ISO comes in two parts:
+
+```sh
+cat vibian-0.7.0-amd64.iso.part* > vibian-0.7.0-amd64.iso   # then write it to a USB stick
+```
+
+It's pre-alpha: use a spare machine or a VM. **The installer erases the largest disk in the machine.** The [install guide](docs/INSTALL.md) covers checksums, USB sticks, the installer and first boot.
 
 ## Undo everything
 
@@ -130,7 +144,7 @@ You choose how much power it gets (everything, ask first, or scoped with approva
 <details>
 <summary><b>Can I install it today?</b></summary>
 
-Not yet: Vibian is pre-alpha and built in public. The ISO builds and installs unattended in a VM, and everything in the [status](#status) list passes the VM test. Star or watch the repo to hear when the first ISO is out.
+Yes, on a spare machine or in a VM. Grab the amd64 or arm64 ISO from [Releases](https://github.com/jacobzipper/vibian/releases) and follow the [install guide](docs/INSTALL.md). It's pre-alpha: the installer erases the largest disk and doesn't let you pick another one yet. Star or watch the repo to hear about new releases.
 </details>
 
 <details>
@@ -159,14 +173,14 @@ Playful name, serious engineering: btrfs layout, snapshot boot, an append-only l
 
 ## Status
 
-🚧 **Pre-alpha, built in public.** Nothing to install yet. The design is in [`docs/SPEC.md`](docs/SPEC.md).
+🚧 **Pre-alpha, built in public.** The [first ISOs](https://github.com/jacobzipper/vibian/releases) are out for amd64 and arm64: install them on a spare machine or a VM. The design is in [`docs/SPEC.md`](docs/SPEC.md).
 
 <details>
 <summary><b>Everything that works today</b> (each line passes the VM test)</summary>
 
 | | |
 |---|---|
-| ISO remaster pipeline | ✅ boots and installs unattended in a KVM VM (UEFI) |
+| ISO remaster pipeline | ✅ amd64 and arm64 installers, built and published by the [release workflow](.github/workflows/release.yml) on every version tag. Both install and pass the VM test (amd64 under KVM, arm64 emulated); the interactive install and first boot also checked by hand on amd64 |
 | btrfs + snapper autoinstall layout | ✅ boots from `@`, apt snapshots work ([test](tests/vm/headless-install.sh)) |
 | grub-btrfs snapshot boot menu | ✅ packaged ([`packages/grub-btrfs`](packages/grub-btrfs)), menu fills in as snapshots are taken |
 | Booting a snapshot | ✅ pick it in GRUB → the system comes up as it was, in a RAM overlay ([`packages/vibian-base`](packages/vibian-base)) |
