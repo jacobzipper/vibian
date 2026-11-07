@@ -1,0 +1,82 @@
+# On a version tag (v0.7.0): remaster the official Ubuntu Server ISOs into
+# Vibian installers for amd64 and arm64 and publish them as a pre-release.
+# GitHub caps release files at 2 GiB, so each ISO ships in parts;
+# SHA256SUMS covers the parts and the joined ISO. Needs no secrets beyond
+# the job's own token.
+name: release
+on:
+  push:
+    tags: ["v*"]
+permissions:
+  contents: read
+jobs:
+  draft:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: The tag matches vibian-base's version
+        run: |
+          want=$(sed -n 's/^VERSION=//p' packages/vibian-base/build-deb.sh)
+          [ "${GITHUB_REF_NAME#v}" = "$want" ] || { echo "tag $GITHUB_REF_NAME, but vibian-base is $want"; exit 1; }
+      - name: Draft the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          v=${GITHUB_REF_NAME#v}
+          sed "s/@VERSION@/$v/g" .github/release-notes.md > notes.md
+          gh release create "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" --verify-tag --draft --prerelease \
+            --title "Vibian $v" --notes-file notes.md
+  iso:
+    needs: draft
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [amd64, arm64]
+    env:
+      ARCH: ${{ matrix.arch }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - run: sudo apt-get update -q && sudo apt-get install -y -q xorriso
+      - name: Fetch Ubuntu Server
+        run: curl -fsSL --retry 3 -o ubuntu.iso "https://cdimage.ubuntu.com/releases/26.04.1/release/ubuntu-26.04.1-live-server-$ARCH.iso"
+      - name: Build the installer
+        run: |
+          iso=vibian-${GITHUB_REF_NAME#v}-$ARCH.iso
+          VIBIAN_ARCH=$ARCH bash iso/build.sh ubuntu.iso "$iso"
+          rm ubuntu.iso
+          sha256sum "$iso" > "SHA256SUMS.$ARCH"
+          split -b 2000M -d -a 1 --numeric-suffixes=1 "$iso" "$iso.part"
+          rm "$iso"
+          sha256sum "$iso".part* >> "SHA256SUMS.$ARCH"
+          cat "SHA256SUMS.$ARCH"
+      - run: gh release upload "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" vibian-*.iso.part* "SHA256SUMS.$ARCH"
+  publish:
+    needs: iso
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: One SHA256SUMS, then publish
+        run: |
+          r=(-R "$GITHUB_REPOSITORY")
+          gh release download "$GITHUB_REF_NAME" "${r[@]}" -p 'SHA256SUMS.*'
+          cat SHA256SUMS.amd64 SHA256SUMS.arm64 > SHA256SUMS
+          gh release upload "$GITHUB_REF_NAME" "${r[@]}" SHA256SUMS
+          for a in amd64 arm64; do gh release delete-asset "$GITHUB_REF_NAME" "SHA256SUMS.$a" "${r[@]}" -y; done
+          gh release edit "$GITHUB_REF_NAME" "${r[@]}" --draft=false
