@@ -1,66 +1,201 @@
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/vibian-logo-dark.png">
-    <img src="docs/assets/vibian-logo-light.png" alt="Vibian's mascot, a winking sphinx cat" width="160">
-  </picture>
-</p>
+<div align="center">
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/vibian-logo-dark.png">
+  <img src="docs/assets/vibian-logo-light.png" alt="Vibian's mascot, a winking sphinx cat" width="140">
+</picture>
 
 # Vibian
 
-**A Linux that boots to a blank terminal. You pick a coding agent, and the agent builds the rest.**
+### The AI-native Linux distro. It boots to a terminal, and your coding agent builds the rest.
 
-Vibian is an Ubuntu 26.04 LTS–based distro for people who already live in Claude Code, Codex, opencode, OpenClaw, pi, Gemini CLI or Cursor. Install it and you get a terminal and an onboarding screen. Pick your agent, log in, and from then on the agent runs your machine. It sets up drivers, wifi and power. Then it interviews you and builds a desktop: Hyprland, KDE, GNOME, niri, Sway, i3, XFCE, COSMIC, a widget desk, or something nobody has made before.
+Pick **Claude Code, Codex, Gemini CLI, opencode, OpenClaw, pi or Cursor**. Tell it what you want.<br>
+It sets up your drivers, wifi and desktop, and **every change it makes can be undone**.
 
-Root for an LLM sounds insane, so Vibian is built around undo:
+[![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-ff79b0?style=for-the-badge&labelColor=16121f)](LICENSE)
+[![Ubuntu 26.04 LTS](https://img.shields.io/badge/base-Ubuntu_26.04_LTS-9d7cd8?style=for-the-badge&logo=ubuntu&logoColor=white&labelColor=16121f)](https://ubuntu.com)
+[![7 agents](https://img.shields.io/badge/agents-7-f6d57e?style=for-the-badge&labelColor=16121f)](#works-with-the-agent-you-already-use)
+[![Harness install check](https://img.shields.io/github/actions/workflow/status/jacobzipper/vibian/harness-install.yml?style=for-the-badge&label=agent%20installs&labelColor=16121f)](https://github.com/jacobzipper/vibian/actions/workflows/harness-install.yml)
+[![Status: pre-alpha](https://img.shields.io/badge/status-pre--alpha-ece1f0?style=for-the-badge&labelColor=16121f)](#status)
 
-- **Snapshots of `/` and `/home`** (btrfs + snapper) before every agent session, every turn and every package change. They're bootable from GRUB if something goes very wrong.
-- **The ledger:** every change the agent makes (files, packages, snapshots, how to undo it, gotchas learned) goes into plain markdown. Any agent can read it, so you can switch harnesses and the next agent knows your machine.
-- **`vibian undo`** reverts a single ledger entry, or the whole session.
+**[<kbd> <br> How it works <br> </kbd>](#how-it-works)**
+**[<kbd> <br> Undo everything <br> </kbd>](#undo-everything)**
+**[<kbd> <br> Desktops <br> </kbd>](#ten-desktops-to-start-from)**
+**[<kbd> <br> Share your rice <br> </kbd>](#share-your-whole-machine)**
+**[<kbd> <br> FAQ <br> </kbd>](#faq)**
 
-And because the ledger knows how your machine was built, **you can share it**:
+<br>
+
+<img src="rices/nhk/screenshots/desktop.png" alt="The nhk rice on Vibian: a Hyprland and Quickshell desktop in purple and pink over a late-night room wallpaper, with widgets for the agent, keyboard shortcuts, stocks, a Mullvad VPN, system stats and the agent's recent changes" width="900">
+
+<sub>The <a href="rices/nhk/RICE.md">nhk rice</a>, which ships with Vibian: <code>vibian apply nhk</code>. The agent built it from prompts, widgets and all.</sub>
+
+</div>
+
+## What is Vibian?
+
+Vibian is a Linux distribution for people who already live in an AI coding agent. It's Ubuntu 26.04 LTS with no desktop at all. You install it, pick your agent and log in, and from then on the agent runs your computer. It knows the OS: an `AGENTS.md` system brief, 15 skills (drivers, networking, audio, power, recovery, gaming, local AI…) and MCP servers for system state and computer use. It interviews you and builds a desktop to match: Hyprland, KDE Plasma, GNOME, COSMIC, niri, Sway, i3, XFCE, a widget desk, or something nobody has made before.
+
+Giving an LLM root sounds insane. So Vibian is built around **undo**.
+
+## How it works
+
+1. **Install.** Boot the ISO. You get a terminal and an onboarding screen: wifi, then your agent.
+2. **Pick your agent.** Vibian installs it from its official source, logs you in, and wires it into the OS (system brief, skills, MCP servers, per-turn snapshot hooks).
+3. **Say what you want.** *"Set up my NVIDIA card." "Give me a tiling desktop that feels like macOS." "Make the text bigger."* Talk to the agent in a terminal, or send a quick `vibian ask` and get a notification when it's done.
+4. **Undo anything.** Every change is snapshotted and written down. `vibian undo` puts it back.
 
 ```sh
-vibian export --publish                    # your whole setup → a git repo
-vibian apply github:someone/their-rice     # their setup, rebuilt by your agent, adapted to your hardware
+vibian ask "install steam and make the fan quieter"   # runs in the background between two snapshots
+vibian history                                         # what changed, when, and which agent did it
+vibian undo L-0042                                     # put one change back
+vibian undo --to 7                                     # or the whole machine, even from a snapshot boot
 ```
+
+## Undo everything
+
+- 📸 **Snapshots of `/` and `/home`.** btrfs + snapper, taken before every agent session, after every agent turn that changed something, and around every package change. Your dotfiles are covered too, not just the system.
+- 🥾 **Boot into any snapshot from GRUB.** If an agent breaks the boot, pick yesterday in the menu and you're back. `vibian undo --to` makes it stick.
+- 📒 **The ledger.** Every change the agent makes goes into plain markdown: the files, the packages, the snapshot pair, how to undo it and what it learned. Any agent can read it, so you can switch from Claude Code to Codex and the new agent already knows your machine.
+- 🔐 **Powers you choose.** *Everything* (no prompts, passwordless sudo), *ask first* (the agent asks before each command), or *scoped*: no sudo, every root command logged with a reason, and risky ones (disks, boot, sudoers) wait for `sudo vibian approve`.
+
+## Works with the agent you already use
+
+| Agent | Installed from | Hooks + MCP + skills |
+|---|---|---|
+| [Claude Code](https://claude.com/claude-code) | official installer | ✅ |
+| [Codex CLI](https://github.com/openai/codex) | official installer | ✅ |
+| [Gemini CLI](https://github.com/google-gemini/gemini-cli) | official installer | ✅ |
+| [opencode](https://opencode.ai) | official installer | ✅ |
+| [OpenClaw](https://openclaw.ai) | official installer | ✅ |
+| [pi](https://pi.dev) | official installer | ✅ |
+| [Cursor CLI](https://cursor.com/cli) | official installer | ✅ |
+
+None are bundled. Vibian installs the one you pick at onboarding, and a [weekly check](.github/workflows/harness-install.yml) installs all seven on a fresh Ubuntu 26.04 to catch upstream changes.
+
+## Ten desktops to start from
+
+The agent can build anything, but it doesn't start from nothing. Each **desktop playbook** is a short interview plus tested scripts, and each one passes a VM test on every change. Your agent adapts it to your answers and your hardware.
+
+<table>
+  <tr>
+    <td align="center"><a href="playbooks/quickshell-desk/PLAYBOOK.md"><img src="playbooks/quickshell-desk/screenshots/menu.png" alt="Vibian's Quickshell desk with its start menu open" width="280"></a><br><b>Quickshell desk</b><br><sub>Vibian's own desk: taskbar, start menu, widgets</sub></td>
+    <td align="center"><a href="playbooks/kde-plasma/PLAYBOOK.md"><img src="playbooks/kde-plasma/screenshots/desktop.png" alt="KDE Plasma 6.6 on Vibian" width="280"></a><br><b>KDE Plasma 6.6</b><br><sub>SDDM, Breeze in your accent colour</sub></td>
+    <td align="center"><a href="playbooks/gnome/PLAYBOOK.md"><img src="playbooks/gnome/screenshots/desktop.png" alt="GNOME 50 on Vibian" width="280"></a><br><b>GNOME 50</b><br><sub>upstream-style or Ubuntu-style</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><a href="playbooks/cosmic/PLAYBOOK.md"><img src="playbooks/cosmic/screenshots/desktop.png" alt="COSMIC 1.11 on Vibian" width="280"></a><br><b>COSMIC 1.11</b><br><sub>System76's panel, dock and auto-tiling</sub></td>
+    <td align="center"><a href="playbooks/hyprland/PLAYBOOK.md"><img src="playbooks/hyprland/screenshots/desktop.png" alt="Hyprland on Vibian" width="280"></a><br><b>Hyprland</b><br><sub>tuigreet, waybar, fuzzel, mako</sub></td>
+    <td align="center"><a href="playbooks/xfce/PLAYBOOK.md"><img src="playbooks/xfce/screenshots/menu.png" alt="XFCE 4.20 on Vibian with Whisker Menu open" width="280"></a><br><b>XFCE 4.20</b><br><sub>light and traditional, on X11</sub></td>
+  </tr>
+</table>
+
+Also: [niri](playbooks/niri/PLAYBOOK.md) (scrolling tiling, built from source with pinned hashes), [Sway](playbooks/sway/PLAYBOOK.md), [i3](playbooks/i3/PLAYBOOK.md) (for old GPUs and anything Wayland struggles with) and [headless](playbooks/headless/PLAYBOOK.md) (a home server or an old laptop with its lid shut: SSH, a firewall, mDNS, tmux). Add the [Ask overlay](playbooks/ask-overlay/PLAYBOOK.md) to any of them for a SUPER+/ box that sends a request to your agent.
+
+## Share your whole machine
+
+Dotfiles share a theme. Vibian shares the **whole setup**: packages, apt sources, services, dotfiles and the ledger of how it was built. The person applying it gets it rebuilt by *their* agent, adapted to *their* hardware.
+
+```sh
+vibian export --publish                    # your machine → a git repo on GitHub (secrets scrubbed, gitleaks-checked)
+vibian apply github:someone/their-rice     # their machine, rebuilt by your agent
+vibian apply nhk                           # or a rice that ships with Vibian
+```
+
+Rices are a folder of markdown, scripts and screenshots, so they're easy to read before you run them and easy to send as a pull request.
+
+## Vibian vs Omarchy
+
+Omarchy is great if you want DHH's desktop. Vibian is for people who want *their own*.
+
+| | Omarchy | Vibian |
+|---|---|---|
+| First boot | DHH's Hyprland desktop | A terminal; your agent interviews you |
+| Desktops | One opinionated Hyprland | 10 playbooks, or anything you describe |
+| Base | Arch, rolling | Ubuntu 26.04 LTS: `ubuntu-drivers`, NVIDIA, Secure Boot |
+| Snapshots | `/` on updates | `/` **and** `/home`, every agent session and turn |
+| Agent memory | none | the ledger, readable by any agent |
+| Sharing | themes | whole machines, replayed on your hardware |
+
+There's a longer comparison in the [spec](docs/SPEC.md#1-positioning).
+
+## FAQ
+
+<details>
+<summary><b>Root for an LLM? Really?</b></summary>
+
+You choose how much power it gets (everything, ask first, or scoped with approvals). Whatever you pick, `/` and `/home` are snapshotted before every session and after every turn that changed something, every change is in the ledger, and any snapshot boots from GRUB. The worst case is a reboot into yesterday.
+</details>
+
+<details>
+<summary><b>Can I install it today?</b></summary>
+
+Not yet: Vibian is pre-alpha and built in public. The ISO builds and installs unattended in a VM, and everything in the [status](#status) list passes the VM test. Star or watch the repo to hear when the first ISO is out.
+</details>
+
+<details>
+<summary><b>Proprietary agents in a GPL distro?</b></summary>
+
+No agent is bundled. Vibian installs the one you pick, from its official source, when you pick it. opencode, OpenClaw, pi, Codex and Gemini CLI are open source; the `local-ai` skill sets up Ollama if you want models on your own GPU.
+</details>
+
+<details>
+<summary><b>Why Ubuntu and not Arch?</b></summary>
+
+LTS means signed NVIDIA drivers, Secure Boot and firmware that just work, and five years of security updates. The agent handles the "but I want the new thing" part: niri and Quickshell, for example, are built from source by their playbooks with pinned hashes.
+</details>
+
+<details>
+<summary><b>What does the agent actually know about my system?</b></summary>
+
+A system brief (`AGENTS.md`), 15 OS skills (packages, drivers and hardware, displays, networking, audio and bluetooth, power, users and security, services, recovery, computer use, gaming, local AI, dev environments, export and apply, desktop playbooks), the `vibian-system` MCP server (doctor, hardware, ledger, snapshots) and the `vibian-computer` MCP server (screenshots, windows, clicks and keys on Wayland and X11). They live in [`agent-kit/`](agent-kit).
+</details>
+
+<details>
+<summary><b>"Vibe"… so it's slop?</b></summary>
+
+Playful name, serious engineering: btrfs layout, snapshot boot, an append-only ledger, a VM test for every playbook and a weekly install check for every agent. Read the [spec](docs/SPEC.md).
+</details>
 
 ## Status
 
 🚧 **Pre-alpha, built in public.** Nothing to install yet. The design is in [`docs/SPEC.md`](docs/SPEC.md).
 
+<details>
+<summary><b>Everything that works today</b> (each line passes the VM test)</summary>
+
 | | |
 |---|---|
-| Spec | ✅ draft 1 |
-| Harness adapter research | ✅ [`docs/research/harness-adapters.md`](docs/research/harness-adapters.md) |
 | ISO remaster pipeline | ✅ boots and installs unattended in a KVM VM (UEFI) |
 | btrfs + snapper autoinstall layout | ✅ boots from `@`, apt snapshots work ([test](tests/vm/headless-install.sh)) |
 | grub-btrfs snapshot boot menu | ✅ packaged ([`packages/grub-btrfs`](packages/grub-btrfs)), menu fills in as snapshots are taken |
 | Booting a snapshot | ✅ pick it in GRUB → the system comes up as it was, in a RAM overlay ([`packages/vibian-base`](packages/vibian-base)) |
-| Onboarding TUI, `vibian` CLI, ledger | ✅ first boot lands in onboarding on tty1; `vibian snap/log/undo/doctor` and the git-backed ledger pass the VM test ([`cmd/vibian`](cmd/vibian)) |
+| Onboarding TUI, `vibian` CLI, ledger | ✅ first boot lands in onboarding on tty1; `vibian snap/log/undo/doctor` and the git-backed ledger ([`cmd/vibian`](cmd/vibian)) |
 | Rollback | ✅ `vibian undo --to <n>`, even from a snapshot boot: the next boot runs the snapshot as `@`, and the old root is kept for 7 days |
-| Harness install from onboarding (7 agents) | 🚧 pi and opencode installed and handed over from onboarding in the VM, driven by keyboard ([`tests/vm/drive.sh`](tests/vm/drive.sh)). All 7 official installers run unattended in the VM and every flag Vibian passes exists in their `--help`. Logging in to a real account is next |
-| Agent powers | ✅ "Everything" runs each agent in its no-prompts mode with passwordless sudo. "Ask first" makes every agent ask before commands and edits (opencode through permission rules, OpenClaw through its exec policy). pi has no approval prompts, and onboarding says so. "Scoped" takes sudo away: the agent runs root commands one at a time with `vibian sudo --why … -- cmd`, each is logged, and risky ones (disks, boot, sudoers, removing core packages, `rm -r` outside home) wait for you to run `sudo vibian approve <id>` |
-| Vibian login banner | ✅ replaces Ubuntu's welcome and "minimized" text on tty1 and ssh, moved aside so removing `vibian-base` brings them back |
+| Agent install from onboarding | ✅ all 7 official installers run unattended; pi and opencode are installed and handed over from onboarding in the VM, driven by keyboard ([`tests/vm/drive.sh`](tests/vm/drive.sh)); Claude Code tested with a real login. A [weekly CI check](.github/workflows/harness-install.yml) installs all 7 |
+| Agent powers | ✅ *Everything* runs each agent in its no-prompts mode with passwordless sudo. *Ask first* makes every agent ask before commands and edits (opencode through permission rules, OpenClaw through its exec policy; pi has no approval prompts, and onboarding says so). *Scoped* takes sudo away: the agent runs root commands one at a time with `vibian sudo --why … -- cmd`, each is logged, and risky ones wait for `sudo vibian approve <id>` |
 | 15 OS skills | ✅ packages, drivers-hardware, displays, networking, audio-bluetooth, power, users-security, services, recovery, computer-use, gaming, local-ai, dev-env, export-apply, desktop-playbooks ([`agent-kit`](agent-kit)) |
 | Wifi in onboarding | ✅ NetworkManager; pick a network and type its password on the Network step |
-| `vibian-system` MCP server | ✅ `vibian mcp`: doctor, hardware, ledger and snapshot tools, registered in all 7 harnesses' configs |
-| Per-turn snapshots | ✅ `vibian hook` keeps a root+home pair for each agent turn that changed something (at most one per 5 min); hooks or plugins for all 7 harnesses |
+| `vibian-system` MCP server | ✅ `vibian mcp`: doctor, hardware, ledger and snapshot tools, registered in all 7 agents' configs |
+| Per-turn snapshots | ✅ `vibian hook` keeps a root+home pair for each agent turn that changed something (at most one per 5 min); hooks or plugins for all 7 agents |
 | `vibian history` | ✅ ledger entries and snapshot pairs in one list; `vibian undo --pair <n>` for changes nobody logged |
 | Export and apply | ✅ `vibian export` writes the setup as a git repo: packages, dotfiles, apt sources, services, and the ledger. A deny-list, a scrub and gitleaks keep secrets out. `--publish` puts it on GitHub. `vibian apply` hands it to your agent with a plan; `--scripts-only` replays it as-is |
-| `vibian-computer` MCP server | ✅ `vibian mcp computer`: screenshot, windows, focus, click/drag/scroll, type, keys on Hyprland, Sway, niri, other wlroots, KDE and X11 (GNOME best effort), registered in all 7 harnesses. VM-tested on Sway (native and uinput input) and X11; Hyprland is checked read-only on real hardware; niri and KDE are untested |
-| Desktop playbooks | 🚧 `vibian playbooks` lists them and the `desktop-playbooks` skill walks the agent through one: a short interview, a root script, a user script, and a verify script that must print `VERIFY OK`. ✅ All ten. [Hyprland](playbooks/hyprland/PLAYBOOK.md), [Sway](playbooks/sway/PLAYBOOK.md) and [niri](playbooks/niri/PLAYBOOK.md) each come with a tuigreet login, waybar, fuzzel and mako. niri isn't in Ubuntu 26.04's archive, so its playbook builds the upstream release from source, with the download hashes pinned; the others come from the archive. [Quickshell desk](playbooks/quickshell-desk/PLAYBOOK.md) is Hyprland with Vibian's own desk in place of the bar, written in Quickshell's QML: a taskbar, a start menu that also takes requests for the agent, and desktop widgets to ask the agent, see its recent changes and watch the system. Quickshell is built from source the same way as niri. [i3](playbooks/i3/PLAYBOOK.md) runs on X11 with LightDM, i3bar, rofi, dunst and picom, for old GPUs and anything Wayland struggles with. [XFCE](playbooks/xfce/PLAYBOOK.md) 4.20 is the light, traditional one: also X11 and LightDM, one panel with Whisker Menu, Greybird dark or light, and SUPER+arrows tiling. [COSMIC](playbooks/cosmic/PLAYBOOK.md) 1.11 comes from System76's Pop!_OS repo, pinned so Ubuntu's own packages always win, with its login screen, panel and dock, and auto-tiling one key away. [KDE Plasma](playbooks/kde-plasma/PLAYBOOK.md) 6.6 comes with SDDM on its Wayland greeter, Breeze dark or light in your accent colour, and a small app set. [GNOME](playbooks/gnome/PLAYBOOK.md) 50 comes upstream-style or Ubuntu-style (with the dock), with GDM, your accent and dark or light. The VM test runs each playbook on every change, and each was booted to the desktop by hand ([Hyprland](playbooks/hyprland/screenshots/desktop.png), [Sway](playbooks/sway/screenshots/desktop.png), [niri](playbooks/niri/screenshots/desktop.png), [i3](playbooks/i3/screenshots/desktop.png), [XFCE](playbooks/xfce/screenshots/desktop.png), [COSMIC](playbooks/cosmic/screenshots/desktop.png), [KDE](playbooks/kde-plasma/screenshots/desktop.png), [GNOME](playbooks/gnome/screenshots/desktop.png), [Quickshell desk](playbooks/quickshell-desk/screenshots/desktop.png)). [Headless](playbooks/headless/PLAYBOOK.md) is for a machine with no desktop, like a home server or an old laptop with its lid shut. It boots to the console and is reachable as `<hostname>.local`, with SSH (keys only once a key works), a firewall, no sleep, automatic security updates, and tmux so the agent carries on when the connection drops |
-| Ask overlay | ✅ `vibian ask "make the text bigger"` runs the agent in the background between a snapshot pair and sends a notification when it's done; `vibian asks` lists the requests and answers. The [Ask overlay](playbooks/ask-overlay/PLAYBOOK.md) playbook puts it on SUPER+/ in any of the desktops: a small GTK 4 box over the screen to type a request and see the recent ones ([screenshot](playbooks/ask-overlay/screenshots/overlay.png)) |
-| NHK rice | ✅ `vibian apply nhk`: the [first rice](rices/nhk/RICE.md) ships with Vibian. It's the Quickshell desk in late-night purple, pink and lamp yellow, with Dela Gothic One, DotGothic16 and Maple Mono, and three original wallpapers ([screenshot](rices/nhk/screenshots/desktop.png)). Any playbook's look can be themed the same way: the Quickshell desk reads its colours and fonts from `theme.json` |
+| `vibian-computer` MCP server | ✅ `vibian mcp computer`: screenshot, windows, focus, click/drag/scroll, type, keys on Hyprland, Sway, niri, other wlroots, KDE and X11 (GNOME best effort). VM-tested on Sway (native and uinput input) and X11; Hyprland checked on real hardware; niri and KDE untested |
+| Desktop playbooks | ✅ all ten: a short interview, a root script, a user script, and a verify script that must print `VERIFY OK`. Each was also booted to the desktop by hand ([Hyprland](playbooks/hyprland/screenshots/desktop.png), [Sway](playbooks/sway/screenshots/desktop.png), [niri](playbooks/niri/screenshots/desktop.png), [i3](playbooks/i3/screenshots/desktop.png), [XFCE](playbooks/xfce/screenshots/desktop.png), [COSMIC](playbooks/cosmic/screenshots/desktop.png), [KDE](playbooks/kde-plasma/screenshots/desktop.png), [GNOME](playbooks/gnome/screenshots/desktop.png), [Quickshell desk](playbooks/quickshell-desk/screenshots/desktop.png)) |
+| Ask overlay | ✅ `vibian ask "make the text bigger"` runs the agent in the background between a snapshot pair and sends a notification when it's done; `vibian asks` lists them. The [Ask overlay](playbooks/ask-overlay/PLAYBOOK.md) puts it on SUPER+/ in any desktop ([screenshot](playbooks/ask-overlay/screenshots/overlay.png)) |
+| nhk rice | ✅ `vibian apply nhk`: the [first rice](rices/nhk/RICE.md) ships with Vibian. The Quickshell desk in late-night purple, pink and lamp yellow, with Dela Gothic One, DotGothic16 and Maple Mono, three original wallpapers, and widgets for stocks and Mullvad VPN. Any desk is themed the same way, through `theme.json` |
 | Examples (Bloomberg desk, startup mission control, grandma mode) | ⏳ |
 
-## Why not Omarchy?
+</details>
 
-Omarchy is great if you want DHH's desktop. Vibian is for people who want *their own*. It starts with no desktop at all, runs on Ubuntu LTS so NVIDIA cards and Secure Boot just work, snapshots `/home` as well as `/`, and lets you share whole machines rather than just themes. There's a longer comparison in the [spec](docs/SPEC.md#1-positioning).
+## How Vibian started
 
-## Origin
+Vibian started as one laptop. A stock Ubuntu install became a fully custom anime rice in about a day, entirely by prompting coding agents. It had a Windows-style desk, drag-to-edge tiling, a VPN widget, a local image-generation app and an embedded agent with computer use. Then a second agent picked up where the first left off by reading its change log. Vibian turns that into an OS.
 
-Vibian started as one laptop. A stock Ubuntu install was turned into a fully custom /g/-style anime rice in about a day, entirely by prompting coding agents. That build had a Windows-style desk, drag-to-edge tiling, a VPN widget, a local image-gen app and an embedded agent with computer use. A second agent then picked up where the first left off by reading its change log. Vibian turns that into an OS.
+## Contributing
+
+Playbooks and rices are markdown plus shell scripts, which makes them good first pull requests. Start from any folder in [`playbooks/`](playbooks) or [`rices/`](rices), and read [`docs/SPEC.md`](docs/SPEC.md) for the design. Issues and ideas are welcome.
 
 ## License
 
-[GPL-3.0](LICENSE). Agent harnesses are installed from their official sources at onboarding and are never bundled; several are proprietary.
+[GPL-3.0](LICENSE). Agents are installed from their official sources at onboarding and are never bundled; several are proprietary.
