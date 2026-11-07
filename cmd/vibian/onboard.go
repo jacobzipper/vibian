@@ -1,9 +1,12 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"time"
 
 	"github.com/jacobzipper/vibian/internal/harness"
 	"github.com/jacobzipper/vibian/internal/onboard"
@@ -24,6 +27,7 @@ func cmdOnboard(args []string) error {
 		if _, err := os.Stat(onboardedMarker()); err == nil {
 			return nil
 		}
+		waitFirstBoot()
 	}
 	if os.Geteuid() == 0 {
 		return fmt.Errorf("run onboarding as your own user, not root")
@@ -48,4 +52,20 @@ func cmdOnboard(args []string) error {
 		return err
 	}
 	return runAgent(cfg, FirstPrompt)
+}
+
+// waitFirstBoot holds onboarding until cloud-init's first boot is over. It
+// prints the host keys on the console a few seconds after the login prompt
+// would appear, which scribbles over the onboarding screen on tty1.
+func waitFirstBoot() {
+	if _, err := os.Stat("/run/cloud-init/result.json"); err == nil {
+		return
+	}
+	if _, err := exec.LookPath("cloud-init"); err != nil {
+		return
+	}
+	fmt.Println("Finishing the first boot…")
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
+	exec.CommandContext(ctx, "cloud-init", "status", "--wait").Run()
 }
