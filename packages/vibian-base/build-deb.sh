@@ -4,7 +4,7 @@
 # skills), dracut's snapshot-boot overlay and GRUB defaults. Needs Go 1.24+.
 # VIBIAN_ARCH=arm64 cross-builds the arm64 package (default amd64).
 set -euo pipefail
-VERSION=0.7.1
+VERSION=0.7.2
 arch=${VIBIAN_ARCH:-amd64}
 case $arch in amd64|arm64) ;; *) echo "build-deb.sh: VIBIAN_ARCH must be amd64 or arm64" >&2; exit 2 ;; esac
 here=$(cd "$(dirname "$0")" && pwd)
@@ -86,7 +86,14 @@ if [ "$1" = configure ]; then
   fi
   # /dev/uinput to the user at the seat (computer use), without a reboot
   udevadm control --reload-rules >/dev/null 2>&1 && udevadm trigger --sysname-match=uinput >/dev/null 2>&1 || true
-  dracut --regenerate-all --force
+  # each installed kernel, not --regenerate-all: a removed kernel can leave
+  # /usr/lib/modules/VERSION behind, and dracut fails on that one
+  for k in /boot/vmlinuz-*; do
+    v=${k#/boot/vmlinuz-}
+    if [ -e "$k" ] && [ -d "/usr/lib/modules/$v" ]; then
+      dracut --force --kver "$v"
+    fi
+  done
   if [ -e /boot/grub/grub.cfg ] && command -v update-grub >/dev/null; then
     update-grub || true
   fi

@@ -33,7 +33,7 @@ sudo snapper -c root diff 41..42 /etc/default/grub
 `/home` (has its own `home` config), `/var/log`, `/var/cache`, `/var/lib/docker`, `/var/lib/libvirt` and `/var/lib/vibian` (the ledger) are separate subvolumes. Tell the user that a root rollback won't touch their files or containers.
 
 ## Repairs
-- **initramfs** (Vibian uses dracut, not initramfs-tools): `sudo dracut --regenerate-all --force`. The `overlayfs` dracut module must stay included (`/etc/dracut.conf.d/90-vibian.conf`), or snapshot boot breaks.
+- **initramfs** (Vibian uses dracut, not initramfs-tools): `sudo dracut --force --kver "$(uname -r)"` (repeat with each `--kver` in `/boot/vmlinuz-*`; `--regenerate-all` fails if a removed kernel left `/usr/lib/modules/VERSION` behind). The `overlayfs` dracut module must stay included (`/etc/dracut.conf.d/90-vibian.conf`), or snapshot boot breaks.
 - **GRUB config**: `sudo update-grub`. The ESP stub `/boot/efi/EFI/ubuntu/grub.cfg` must point at `/@/boot/grub`.
 - **fstab**: root is `subvol=/@`. Never change it to a snapshot path; use `vibian undo --to`.
 - **chroot from a live USB** (Ubuntu or Vibian ISO, "Try"):
