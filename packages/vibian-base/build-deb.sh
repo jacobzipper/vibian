@@ -4,7 +4,7 @@
 # skills), dracut's snapshot-boot overlay and GRUB defaults. Needs Go 1.24+.
 # VIBIAN_ARCH=arm64 cross-builds the arm64 package (default amd64).
 set -euo pipefail
-VERSION=0.7.0
+VERSION=0.7.1
 arch=${VIBIAN_ARCH:-amd64}
 case $arch in amd64|arm64) ;; *) echo "build-deb.sh: VIBIAN_ARCH must be amd64 or arm64" >&2; exit 2 ;; esac
 here=$(cd "$(dirname "$0")" && pwd)

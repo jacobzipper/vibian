@@ -24,18 +24,18 @@ Secure Boot can stay on: the ISO keeps Ubuntu's signed boot chain.
 Open the [latest release](https://github.com/jacobzipper/vibian/releases). GitHub caps release files at 2 GiB, so each ISO comes in parts. Download every `.part` file for your architecture and `SHA256SUMS`, then join the parts and check the result:
 
 ```bash
-cat vibian-0.7.0-amd64.iso.part* > vibian-0.7.0-amd64.iso
+cat vibian-0.7.1-amd64.iso.part* > vibian-0.7.1-amd64.iso
 sha256sum -c --ignore-missing SHA256SUMS
 ```
 
 On macOS, use `shasum -a 256 -c --ignore-missing SHA256SUMS`. On Windows, join the parts in a Command Prompt:
 
 ```bat
-copy /b vibian-0.7.0-amd64.iso.part1 + vibian-0.7.0-amd64.iso.part2 vibian-0.7.0-amd64.iso
-certutil -hashfile vibian-0.7.0-amd64.iso SHA256
+copy /b vibian-0.7.1-amd64.iso.part1 + vibian-0.7.1-amd64.iso.part2 vibian-0.7.1-amd64.iso
+certutil -hashfile vibian-0.7.1-amd64.iso SHA256
 ```
 
-Releases after 0.7.0 also carry a signed build provenance attestation. With the [GitHub CLI](https://cli.github.com) you can check that the ISO was built by this repo's release workflow from a tagged commit:
+From 0.7.1 on, each ISO also carries a signed build provenance attestation. With the [GitHub CLI](https://cli.github.com) you can check that the ISO was built by this repo's release workflow from a tagged commit:
 
 ```bash
 gh attestation verify vibian-<version>-amd64.iso -R jacobzipper/vibian
@@ -46,7 +46,7 @@ gh attestation verify vibian-<version>-amd64.iso -R jacobzipper/vibian
 Any of these work: [balenaEtcher](https://etcher.balena.io), [Ventoy](https://www.ventoy.net), [Rufus](https://rufus.ie) (pick DD mode when it asks), or `dd` on Linux:
 
 ```bash
-sudo dd if=vibian-0.7.0-amd64.iso of=/dev/sdX bs=4M status=progress oflag=sync   # sdX is the stick, not your disk
+sudo dd if=vibian-0.7.1-amd64.iso of=/dev/sdX bs=4M status=progress oflag=sync   # sdX is the stick, not your disk
 ```
 
 In a VM, attach the ISO as a CD and turn on EFI (VirtualBox: *System → Enable EFI*; virt-manager: *Firmware: UEFI*).
