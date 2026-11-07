@@ -46,10 +46,10 @@ Giving an LLM root sounds insane. So Vibian is built around **undo**.
 4. **Undo anything.** Every change is snapshotted and written down. `vibian undo` puts it back.
 
 ```sh
-vibian ask "install steam and make the fan quieter"   # runs in the background between two snapshots
-vibian history                                         # what changed, when, and which agent did it
-vibian undo L-0042                                     # put one change back
-vibian undo --to 7                                     # or the whole machine, even from a snapshot boot
+vibian ask "install steam and quiet the fan"   # runs in the background, between snapshots
+vibian history                                 # what changed, when, and which agent did it
+vibian undo L-0042                             # put one change back
+vibian undo --to 7                             # or roll the whole machine back
 ```
 
 ## Undo everything
@@ -61,17 +61,17 @@ vibian undo --to 7                                     # or the whole machine, e
 
 ## Works with the agent you already use
 
-| Agent | Installed from | Hooks + MCP + skills |
-|---|---|---|
-| [Claude Code](https://claude.com/claude-code) | official installer | ✅ |
-| [Codex CLI](https://github.com/openai/codex) | official installer | ✅ |
-| [Gemini CLI](https://github.com/google-gemini/gemini-cli) | official installer | ✅ |
-| [opencode](https://opencode.ai) | official installer | ✅ |
-| [OpenClaw](https://openclaw.ai) | official installer | ✅ |
-| [pi](https://pi.dev) | official installer | ✅ |
-| [Cursor CLI](https://cursor.com/cli) | official installer | ✅ |
+| Agent | Licence | Snapshot hooks | MCP servers | OS skills |
+|---|---|:-:|:-:|:-:|
+| [Claude Code](https://claude.com/claude-code) | proprietary | ✅ | ✅ | ✅ |
+| [Codex CLI](https://github.com/openai/codex) | Apache-2.0 | ✅ | ✅ | ✅ |
+| [Gemini CLI](https://github.com/google-gemini/gemini-cli) | Apache-2.0 | ✅ | ✅ | ✅ |
+| [opencode](https://opencode.ai) | MIT | ✅ | ✅ | ✅ |
+| [OpenClaw](https://openclaw.ai) | MIT | ✅ | ✅ | ✅ |
+| [pi](https://pi.dev) | MIT | ✅ | ✅ | ✅ |
+| [Cursor CLI](https://cursor.com/cli) | proprietary | ✅ | ✅ | ✅ |
 
-None are bundled. Vibian installs the one you pick at onboarding, and a [weekly check](.github/workflows/harness-install.yml) installs all seven on a fresh Ubuntu 26.04 to catch upstream changes.
+None are bundled. Vibian installs the one you pick from its official source at onboarding, and you can switch any time with `vibian agent set`. A [weekly check](.github/workflows/harness-install.yml) installs all seven on a fresh Ubuntu 26.04 to catch upstream changes.
 
 ## Ten desktops to start from
 
@@ -97,9 +97,9 @@ Also: [niri](playbooks/niri/PLAYBOOK.md) (scrolling tiling, built from source wi
 Dotfiles share a theme. Vibian shares the **whole setup**: packages, apt sources, services, dotfiles and the ledger of how it was built. The person applying it gets it rebuilt by *their* agent, adapted to *their* hardware.
 
 ```sh
-vibian export --publish                    # your machine → a git repo on GitHub (secrets scrubbed, gitleaks-checked)
-vibian apply github:someone/their-rice     # their machine, rebuilt by your agent
-vibian apply nhk                           # or a rice that ships with Vibian
+vibian export --publish                  # your machine → a git repo, secrets scrubbed
+vibian apply github:someone/their-rice   # their machine, rebuilt by your agent
+vibian apply nhk                         # or a rice that ships with Vibian
 ```
 
 Rices are a folder of markdown, scripts and screenshots, so they're easy to read before you run them and easy to send as a pull request.
