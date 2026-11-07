@@ -35,6 +35,12 @@ copy /b vibian-0.7.0-amd64.iso.part1 + vibian-0.7.0-amd64.iso.part2 vibian-0.7.0
 certutil -hashfile vibian-0.7.0-amd64.iso SHA256
 ```
 
+Releases after 0.7.0 also carry a signed build provenance attestation. With the [GitHub CLI](https://cli.github.com) you can check that the ISO was built by this repo's release workflow from a tagged commit:
+
+```bash
+gh attestation verify vibian-<version>-amd64.iso -R jacobzipper/vibian
+```
+
 ## 2. Write it to a USB stick
 
 Any of these work: [balenaEtcher](https://etcher.balena.io), [Ventoy](https://www.ventoy.net), [Rufus](https://rufus.ie) (pick DD mode when it asks), or `dd` on Linux:

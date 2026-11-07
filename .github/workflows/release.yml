@@ -1,8 +1,8 @@
 # On a version tag (v0.7.0): remaster the official Ubuntu Server ISOs into
 # Vibian installers for amd64 and arm64 and publish them as a pre-release.
 # GitHub caps release files at 2 GiB, so each ISO ships in parts;
-# SHA256SUMS covers the parts and the joined ISO. Needs no secrets beyond
-# the job's own token.
+# SHA256SUMS covers the parts and the joined ISO, and each build gets a signed
+# provenance attestation. Needs no secrets beyond the job's own token.
 name: release
 on:
   push:
@@ -36,6 +36,8 @@ jobs:
     timeout-minutes: 90
     permissions:
       contents: write
+      id-token: write      # build provenance attestation
+      attestations: write
     strategy:
       fail-fast: false
       matrix:
@@ -67,6 +69,10 @@ jobs:
           rm "$iso"
           sha256sum "$iso".part* >> "SHA256SUMS.$ARCH"
           cat "SHA256SUMS.$ARCH"
+      # signed provenance for the ISO and its parts: gh attestation verify FILE -R OWNER/REPO
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-checksums: SHA256SUMS.${{ matrix.arch }}
       - run: gh release upload "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" vibian-*.iso.part* "SHA256SUMS.$ARCH"
   publish:
     needs: iso
