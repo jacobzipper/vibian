@@ -64,7 +64,7 @@ GitHub caps release files at 2 GiB, so each ISO comes in two parts:
 cat vibian-0.7.0-amd64.iso.part* > vibian-0.7.0-amd64.iso   # then write it to a USB stick
 ```
 
-It's pre-alpha: use a spare machine or a VM. **The installer erases the largest disk in the machine.** The [install guide](docs/INSTALL.md) covers checksums, USB sticks, the installer and first boot.
+It's pre-alpha: use a spare machine or a VM. **The installer erases the whole disk it installs to.** The [install guide](docs/INSTALL.md) covers checksums, USB sticks, the installer and first boot.
 
 ## Undo everything
 
@@ -144,7 +144,7 @@ You choose how much power it gets (everything, ask first, or scoped with approva
 <details>
 <summary><b>Can I install it today?</b></summary>
 
-Yes, on a spare machine or in a VM. Grab the amd64 or arm64 ISO from [Releases](https://github.com/jacobzipper/vibian/releases) and follow the [install guide](docs/INSTALL.md). It's pre-alpha: the installer erases the largest disk and doesn't let you pick another one yet. Star or watch the repo to hear about new releases.
+Yes, on a spare machine or in a VM. Grab the amd64 or arm64 ISO from [Releases](https://github.com/jacobzipper/vibian/releases) and follow the [install guide](docs/INSTALL.md). It's pre-alpha: the installer erases the whole disk it installs to (it asks which one if there are several). Star or watch the repo to hear about new releases.
 </details>
 
 <details>
@@ -181,6 +181,7 @@ Playful name, serious engineering: btrfs layout, snapshot boot, an append-only l
 | | |
 |---|---|
 | ISO remaster pipeline | ✅ amd64 and arm64 installers, built and published by the [release workflow](.github/workflows/release.yml) on every version tag. Both install and pass the VM test (amd64 under KVM, arm64 emulated); the interactive install and first boot also checked by hand on amd64 |
+| Installer disk picker | ✅ with several disks, asks which to erase ([`iso/pick-disk.sh`](iso/pick-disk.sh)); tested in a two-disk VM, both ways round |
 | btrfs + snapper autoinstall layout | ✅ boots from `@`, apt snapshots work ([test](tests/vm/headless-install.sh)) |
 | grub-btrfs snapshot boot menu | ✅ packaged ([`packages/grub-btrfs`](packages/grub-btrfs)), menu fills in as snapshots are taken |
 | Booting a snapshot | ✅ pick it in GRUB → the system comes up as it was, in a RAM overlay ([`packages/vibian-base`](packages/vibian-base)) |

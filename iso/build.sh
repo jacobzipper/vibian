@@ -5,8 +5,9 @@
 # /autoinstall.yaml and the /vibian payload. Boot records are replayed from the
 # source ISO, so BIOS + UEFI + Secure Boot keep working.
 #
-# --unattended is for VM tests only: no confirmation before wiping the largest
-# disk, and a throwaway login (vibian / vibian).
+# --unattended is for VM tests only: no confirmation before wiping the disk
+# (the only one, or the one picked in the disk menu), and a throwaway login
+# (vibian / vibian).
 # VIBIAN_ARCH is amd64 (the default) or arm64 and must match UBUNTU_ISO.
 # VIBIAN_CMDLINE_EXTRA adds kernel arguments (e.g. console=ttyS0,115200).
 # VIBIAN_APT_MIRROR points the install at another archive, e.g. an IP-addressed
@@ -32,7 +33,7 @@ fi
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 mkdir -p "$work/vibian"
-cp "$here/btrfs-layout.sh" "$work/vibian/"
+cp "$here/btrfs-layout.sh" "$here/pick-disk.sh" "$work/vibian/"
 # packages the Ubuntu archive lacks, installed by btrfs-layout.sh
 bash "$here/../packages/grub-btrfs/build-deb.sh" "$work/vibian/pool" >/dev/null
 VIBIAN_ARCH=$arch bash "$here/../packages/vibian-base/build-deb.sh" "$work/vibian/pool" >/dev/null

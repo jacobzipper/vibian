@@ -14,6 +14,9 @@ autoinstall:
   ssh:
     install-server: true
     allow-pw: false
+  # asks which disk to use when there's more than one (vibian.disk=/dev/X skips it)
+  early-commands:
+    - bash /cdrom/vibian/pick-disk.sh
   storage:
     swap:
       size: 0

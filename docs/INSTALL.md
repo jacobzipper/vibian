@@ -2,8 +2,8 @@
 
 > [!WARNING]
 > Vibian is pre-alpha. Install it on a spare machine or in a VM, not on a computer you rely on.
-> **The installer erases the largest disk in the machine.** It asks before it starts, but it
-> doesn't let you choose the disk. Unplug any drive you care about first.
+> **The installer erases a whole disk.** With more than one disk it asks which, and it asks once
+> more before it starts. Unplug any drive you care about anyway.
 
 ## What you need
 
@@ -48,10 +48,11 @@ In a VM, attach the ISO as a CD and turn on EFI (VirtualBox: *System → Enable 
 ## 3. Install
 
 1. Boot from the stick in UEFI mode and pick **Install Vibian**. If the screen stays black, reboot and pick **Install Vibian (safe graphics)**.
-2. **Network:** wired connections come up on their own. For wifi, pick the wireless card and join your network.
-3. **Profile:** your name, the computer's name, a username and a password. The password is for `sudo`; you choose later how much of it the agent gets.
-4. **Confirm destructive action:** **Continue** erases the largest disk and installs. **No** goes back.
-5. The install takes 10 to 30 minutes, depending on your connection. Pick **Reboot now** when it's done and remove the stick.
+2. **Disk:** if the machine has more than one disk of 25 GB or more, a blue menu lists them with their size, model and what's on them now. Pick the one to erase, or **Power off**. With a single disk this step is skipped. On a serial console, or to skip the menu, add `vibian.disk=/dev/nvme0n1` (your disk) to the boot entry's kernel line.
+3. **Network:** wired connections come up on their own. For wifi, pick the wireless card and join your network.
+4. **Profile:** your name, the computer's name, a username and a password. The password is for `sudo`; you choose later how much of it the agent gets.
+5. **Confirm destructive action:** **Continue** erases the disk and installs. **No** goes back.
+6. The install takes 10 to 30 minutes, depending on your connection. Pick **Reboot now** when it's done and remove the stick.
 
 ## 4. First boot
 
