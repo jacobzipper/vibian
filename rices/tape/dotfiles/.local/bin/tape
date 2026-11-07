@@ -37,7 +37,6 @@ RANGES = {"1D": ("1d", "5m"), "5D": ("5d", "15m"), "1M": ("1mo", "1h"),
           "6M": ("6mo", "1d"), "1Y": ("1y", "1d"), "5Y": ("5y", "1wk")}
 CLOCKS = [("NY", "America/New_York"), ("LDN", "Europe/London"), ("FRA", "Europe/Berlin"),
           ("HK", "Asia/Hong_Kong"), ("TKY", "Asia/Tokyo")]
-SPARK = "▁▂▃▄▅▆▇█"
 
 # colour pairs: the terminal's own palette, so the theme (foot.ini) decides the exact shades
 AMBER, UP, DOWN, DIM, HEAD, SEL, WHITE, KEY = range(1, 9)
@@ -232,16 +231,11 @@ def fmt_vol(v):
 
 
 def spark(points, width):
-    if not points or width <= 0:
-        return " " * max(0, width)
-    step = len(points) / width
-    vals = [points[min(len(points) - 1, int(i * step))] for i in range(width)] if len(points) >= width else points
-    lo, hi = min(vals), max(vals)
-    span = (hi - lo) or 1
-    return "".join(SPARK[min(7, int((v - lo) / span * 7.999))] for v in vals).ljust(width)
+    """A one-row braille line: two points per cell, four dots tall."""
+    return braille(points, width, 1, pad=0.001)[0][0] if points and width > 1 else " " * max(0, width)
 
 
-def braille(points, w, h, prev=None):
+def braille(points, w, h, prev=None, pad=0.06):
     """Plot points into h rows of w braille cells. Returns (rows, prev_row or None)."""
     if not points or w < 2 or h < 1:
         return [" " * max(w, 0)] * max(h, 0), None
@@ -249,7 +243,7 @@ def braille(points, w, h, prev=None):
     lo, hi = min(points), max(points)
     if prev is not None:
         lo, hi = min(lo, prev), max(hi, prev)
-    pad = (hi - lo) * 0.06 or abs(hi) * 0.01 or 1
+    pad = (hi - lo) * pad or abs(hi) * 0.01 or 1
     lo, hi = lo - pad, hi + pad
     grid = [[0] * w for _ in range(h)]
     bits = ((0x01, 0x08), (0x02, 0x10), (0x04, 0x20), (0x40, 0x80))
@@ -404,11 +398,15 @@ class App:
             self.msg = "%s %s" % (self.sym, w0)
             return "load"
         if w0 == "ADD" and len(words) > 1:
-            for s in words[1:]:
+            add = [s for s in words[1:] if s not in RANGES]
+            if not add:
+                self.msg = "ADD wants tickers, e.g. ADD NVDA AMD"
+                return "ok"
+            for s in add:
                 if s not in self.watch:
                     self.watch.append(s)
             self.save_watch()
-            self.msg = "Added %s" % " ".join(words[1:])
+            self.msg = "Added %s" % " ".join(add)
             return "quotes"
         if w0 in ("DEL", "RM"):
             target = words[1:] or ([self.watch[self.sel]] if self.watch else [])
@@ -617,7 +615,8 @@ class App:
             prow, lo, hi = meta
             for i in range(chh):
                 v = hi - (hi - lo) * (i * 4 + 2) / (chh * 4 - 1)
-                if i % max(1, chh // 5) == 0 or i == chh - 1:
+                step = max(1, chh // 5)
+                if i % step == 0 or (i == chh - 1 and i % step > step // 2):
                     scr.put(y + 3 + i, x + 2 + cw, "┤%9s" % fmt_price(v), self.c(DIM))
             last = c["points"][-1] if c["points"] else c["price"]
             lrow = min(chh - 1, max(0, int(round((hi - last) / (hi - lo) * (chh * 4 - 1))) // 4))
