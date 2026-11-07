@@ -41,6 +41,7 @@ Environment variables for `scripts/user.sh` (and `VIBIAN_LOGIN` for `scripts/sys
 | `VIBIAN_GAPS` | `6` | outer gap in px; inner is half |
 | `VIBIAN_ACCENT` | `7aa2f7` | hex accent: borders, bar highlight, launcher selection |
 | `VIBIAN_BG` | `16161e` | hex background colour |
+| `VIBIAN_WALLPAPER` | none (the Vibian logo) | absolute path of a wallpaper image, also blurred behind the lock screen |
 | `VIBIAN_KB_LAYOUT` / `VIBIAN_KB_VARIANT` | `us` / empty | XKB layout |
 | `VIBIAN_IDLE_LOCK` | `10` | minutes before the lock screen (0: never) |
 | `VIBIAN_IDLE_SUSPEND` | `0` on desktops, `30` on laptops | minutes before suspend (0: never) |

@@ -18,6 +18,11 @@ kb=${VIBIAN_KB_LAYOUT:-us}
 kbv=${VIBIAN_KB_VARIANT:-}
 lock=${VIBIAN_IDLE_LOCK:-10}
 scale=${VIBIAN_SCALE:-auto}
+wall=${VIBIAN_WALLPAPER:-}
+# set by the quickshell-desk playbook: its desk replaces waybar and the
+# SUPER+Space launcher
+desk=${VIBIAN_DESK:-waybar}
+case $desk in waybar) bar=waybar; menu=fuzzel ;; quickshell) bar="qs -c vibian-desk"; menu="qs -c vibian-desk ipc call desk start" ;; *) echo "VIBIAN_DESK: waybar or quickshell" >&2; exit 1 ;; esac
 laptop=0; ls /sys/class/power_supply/BAT* >/dev/null 2>&1 && laptop=1
 suspend=${VIBIAN_IDLE_SUSPEND:-$([ $laptop = 1 ] && echo 30 || echo 0)}
 hex "$accent" VIBIAN_ACCENT; hex "$bg" VIBIAN_BG
@@ -27,6 +32,8 @@ case $layout in dwindle|master) ;; *) echo "VIBIAN_LAYOUT: dwindle or master" >&
 case $mod in SUPER|ALT|CTRL|SUPER_SHIFT|SUPER_ALT) ;; *) echo "VIBIAN_MOD: SUPER, ALT, CTRL, SUPER_SHIFT or SUPER_ALT" >&2; exit 1 ;; esac
 [[ $scale = auto || $scale =~ ^[0-9]+(\.[0-9]+)?$ ]] || { echo "VIBIAN_SCALE: auto or a number" >&2; exit 1; }
 [[ $kb =~ ^[a-z,]+$ && $kbv =~ ^[a-z0-9_,-]*$ ]] || { echo "bad keyboard layout" >&2; exit 1; }
+[ -z "$wall" ] || [[ $wall = /* && $wall != *[[:space:]\#\$]* && -f $wall ]] ||
+  { echo "VIBIAN_WALLPAPER: the absolute path of an image file, with no spaces, # or \$ (got '$wall')" >&2; exit 1; }
 
 cfg=${XDG_CONFIG_HOME:-$HOME/.config}
 written=()
@@ -46,9 +53,15 @@ if lspci 2>/dev/null | grep -qi 'vga.*nvidia\|3d.*nvidia' && [ -e /sys/module/nv
 env = __GLX_VENDOR_LIBRARY_NAME,nvidia
 env = NVD_BACKEND,direct'
 fi
-wallpaper=/usr/share/vibian/vibian-logo.png
+logo=/usr/share/vibian/vibian-logo.png
 swaybg="swaybg -c $bg"  # no '#': it starts a comment in hyprland.conf
-[ -f "$wallpaper" ] && swaybg="$swaybg -i $wallpaper -m center"
+if [ -n "$wall" ]; then swaybg="$swaybg -i $wall -m fill"
+elif [ -f "$logo" ]; then swaybg="$swaybg -i $logo -m center"
+fi
+lockbg="color = rgb($bg)"
+[ -n "$wall" ] && lockbg="color = rgb($bg)
+    path = $wall
+    blur_passes = 2"
 float_rule=""
 [ "$floating" = 1 ] && float_rule='windowrule = float on, match:class .*'
 
@@ -59,14 +72,14 @@ monitor = , preferred, auto, $scale
 
 \$mod = $mod
 \$terminal = $run
-\$menu = fuzzel
+\$menu = $menu
 
 $nvidia
 env = XCURSOR_SIZE,24
 env = QT_QPA_PLATFORM,wayland;xcb
 
 exec-once = $swaybg
-exec-once = waybar
+exec-once = $bar
 exec-once = mako
 exec-once = hypridle
 exec-once = systemctl --user start hyprpolkitagent
@@ -193,7 +206,7 @@ general {
     hide_cursor = true
 }
 background {
-    color = rgb($bg)
+    $lockbg
 }
 label {
     text = \$TIME
