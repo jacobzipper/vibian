@@ -18,6 +18,10 @@ a rainy street.
   to swap in. Original art made for Vibian, under the repo's licence.
 - **Keys:** the `quickshell-desk` ones. SUPER+Space is the start menu,
   where anything that isn't an app goes to the agent.
+- **Widgets:** the `quickshell-desk` set: the clock, the agent, the keys
+  as whole combinations, stocks with today's sparklines (`+ add` a
+  ticker), the system, recent changes, and Mullvad VPN once the Mullvad
+  app is installed.
 
 Apply it with `vibian apply nhk`.
 

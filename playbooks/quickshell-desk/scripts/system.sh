@@ -21,7 +21,7 @@ bash "$here/../hyprland/scripts/system.sh"
 # what the desk's QML loads at run time, and the fonts and icons it draws with
 pkgs=(qml6-module-qtquick qml6-module-qtquick-layouts qml6-module-qtquick-controls
       qml6-module-qtquick-window qml6-module-qtqml-workerscript qml6-module-qtquick-templates
-      qt6-svg-plugins qt6-wayland libjemalloc2 upower papirus-icon-theme fonts-inter jq)
+      qt6-svg-plugins qt6-wayland libjemalloc2 upower papirus-icon-theme fonts-inter jq python3)
 build=(cmake ninja-build g++ pkg-config curl qt6-base-dev qt6-base-private-dev
        qt6-declarative-dev qt6-declarative-private-dev qt6-shadertools-dev qt6-wayland-dev
        qt6-wayland-private-dev libcli11-dev libjemalloc-dev spirv-tools libdrm-dev libgbm-dev

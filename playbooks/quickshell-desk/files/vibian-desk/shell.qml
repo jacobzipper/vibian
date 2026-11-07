@@ -20,6 +20,8 @@ ShellRoot {
     KeysWidget {}
     SystemWidget {}
     ChangesWidget {}
+    StocksWidget {}
+    VpnWidget {}
 
     IpcHandler {
         target: "desk"

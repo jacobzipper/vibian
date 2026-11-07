@@ -3,7 +3,8 @@
 //   accent, background  6 hex digits
 //   terminal            foot, kitty or alacritty
 //   mod                 the Hyprland modifier, for the keys widget
-//   widgets             which widgets to show: clock, ask, keys, system, changes
+//   widgets             which widgets to show: clock, ask, keys, system, changes,
+//                       stocks, vpn (tickers.json here has the stocks' tickers)
 // theme.json, also here, is the look, for themes and rices. The playbook
 // creates it empty and never writes it again. Every key is optional:
 //   accent, background, fg, dim, faint, red, yellow, green   6 hex digits

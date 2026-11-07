@@ -1,7 +1,7 @@
 ---
 id: quickshell-desk
 name: Quickshell desk
-description: Hyprland with a desk built in Quickshell instead of a bar. It has a taskbar and a start menu, plus widgets on the desktop for the clock, asking the agent, the keys, the system and the agent's recent changes. Tiling underneath, familiar on top. Quickshell is built from source.
+description: Hyprland with a desk built in Quickshell instead of a bar. It has a taskbar and a start menu, plus widgets on the desktop for the clock, asking the agent, the keys, the system, the agent's recent changes, stocks and a Mullvad VPN. Tiling underneath, familiar on top. Quickshell is built from source.
 status: tested
 ---
 
@@ -14,7 +14,9 @@ status: tested
   - **Ask your agent:** type a request and press Return. It opens in a terminal so the user can follow it.
   - **Recent changes:** what the agent changed lately, from `vibian history`. Click one to ask the agent what it was and how to undo it.
   - **System:** CPU, memory and disk.
-  - **Keys:** the keys to know.
+  - **Keys:** the keys to know, each as its full combination (Super + Shift + S).
+  - **Stocks:** tickers with today's sparkline, price and change, every minute from Yahoo Finance (no account or key). "+ add" adds a ticker; hover a row and click × to remove it. They're kept in `tickers.json`.
+  - **VPN:** Mullvad's state and location, connect, disconnect, and a country to go through. It appears once the Mullvad app is installed (the agent can set it up) and never reads the account.
   - a big clock.
 
 Everything else comes from `hyprland`: the tiling, mako, hypridle and hyprlock, swaybg, and greetd with tuigreet. The desk's QML is plain text in `~/.config/quickshell/vibian-desk/` that the agent can change, and Quickshell reloads it as soon as a file is saved.
@@ -27,7 +29,7 @@ It was inspired by the desk the agent made for its owner on the laptop where Vib
 
 ## Interview
 Ask only what the user hasn't already said, in one short message:
-1. All the widgets, or fewer? Clock, Ask your agent, Keys, System and Recent changes. (`VIBIAN_WIDGETS`)
+1. All the widgets, or fewer? Clock, Ask your agent, Keys, System, Recent changes, Stocks and VPN. (`VIBIAN_WIDGETS`)
 2. Tiling, or windows that float like a normal desktop? (`VIBIAN_FLOATING`)
 3. Which terminal: foot (light, default), kitty or alacritty? (`VIBIAN_TERMINAL`)
 4. Keyboard layout, if not US? (`VIBIAN_KB_LAYOUT`, `VIBIAN_KB_VARIANT`)
@@ -40,14 +42,14 @@ Every knob of the `hyprland` playbook works the same here (`VIBIAN_MOD`, `VIBIAN
 
 | knob | default | meaning |
 |---|---|---|
-| `VIBIAN_WIDGETS` | `clock,ask,keys,system,changes` | the desktop widgets to show, or `none` |
+| `VIBIAN_WIDGETS` | `clock,ask,keys,system,changes,stocks,vpn` | the desktop widgets to show, or `none` |
 | `VIBIAN_ACCENT` | `7aa2f7` | hex accent: borders, the desk's highlights |
 | `VIBIAN_BG` | `16161e` | hex background colour, for the desk too |
 | `VIBIAN_TERMINAL` | `foot` | where the agent opens: `foot`, `kitty` or `alacritty` |
 | `VIBIAN_FLOATING` | `0` | `1`: new windows float; SUPER+T tiles one |
 | `VIBIAN_KEEP_BUILD_DEPS` | `0` | `1`: keep the compilers and Qt headers after the build |
 
-The desk's settings end up in `~/.config/quickshell/vibian-desk/desk.json` (`accent`, `background`, `terminal`, `mod`, `widgets`). Editing that file changes the desk at once, with no rerun.
+The desk's settings end up in `~/.config/quickshell/vibian-desk/desk.json` (`accent`, `background`, `terminal`, `mod`, `widgets`). Editing that file changes the desk at once, with no rerun. The stocks widget's tickers are in `tickers.json` there, which `user.sh` creates once (SPY, QQQ, AAPL, NVDA, BTC-USD) and never overwrites.
 
 The look is in `theme.json` next to it, which user.sh creates empty and never overwrites, so themes and rices put theirs there. Every key is optional: `accent`, `background`, `fg`, `dim`, `faint`, `red`, `yellow` and `green` (6 hex digits; `accent` and `background` here beat desk.json's), `font`, `mono` and `display` (font families for text, keys, and the clock and card titles), `clock` (the big clock's font, if not `display`'s), and `radius` (the cards' corner radius in px, 10 by default). For example:
 ```json

@@ -17,6 +17,8 @@ check "Hyprland starts the desk" "grep -qx 'exec-once = qs -c vibian-desk' $cfg/
 check "SUPER+Space opens the start menu" "grep -qx '\\\$menu = qs -c vibian-desk ipc call desk start' $cfg/hypr/hyprland.conf"
 check "the desk's files" "test -f $desk/shell.qml && test -f $desk/Taskbar.qml && test -f $desk/Desk.qml"
 check "desk.json is valid" "jq -e '.accent and (.widgets | type == \"array\")' $desk/desk.json"
+check "tickers.json is valid" "jq -e '.tickers | type == \"array\"' $desk/tickers.json"
+check "the stocks script parses" "python3 -I -c 'import ast, sys; ast.parse(open(sys.argv[1]).read())' $desk/stocks.py"
 check "theme.json is valid" "jq -e 'type == \"object\"' $desk/theme.json"
 [ $bad = 0 ] && echo "VERIFY OK" || echo "VERIFY FAILED"
 exit $bad
