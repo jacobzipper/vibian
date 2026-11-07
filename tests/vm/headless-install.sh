@@ -197,10 +197,20 @@ for want in 'set=0 mode=scoped' 'plain-sudo=no' 'plain=0 owner=root' 'nowhy=1' '
 done
 echo "== desktop playbooks"
 : > playbook.log
-for id in hyprland sway niri i3 xfce kde-plasma gnome cosmic; do
+for id in hyprland sway niri i3 xfce kde-plasma gnome cosmic quickshell-desk ask-overlay headless; do
   ssh_vm "bash -s $id" < "$here/desktop-playbook.sh" 2>&1 | tee -a playbook.log
-  greeter='greeter=up vt=tty7'; case $id in kde-plasma|gnome|cosmic) greeter='greeter=up' ;; esac
+  greeter='greeter=up vt=tty7'; case $id in kde-plasma|gnome|cosmic) greeter='greeter=up' ;; headless) greeter='passwords-back=0' ;; ask-overlay) greeter='toggle-closes=yes' ;; esac
   for want in 'listed=1' 'show=0' 'system=0' 'bad-knob=1' 'user=0' 'rerun=0 new-baks=0' 'verify=0' 'user-as-root=1' "$greeter"; do
+    grep -qE -- "^$id\.$want" playbook.log || { echo "MISSING (playbook $id): $want"; fail=1; }
+  done
+  extra=()
+  case $id in
+    quickshell-desk) extra=('qml=1 qml-errors=0$') ;;
+    ask-overlay) extra=('overlay-layer=1 overlay-ask=1') ;;
+    headless) extra=('target=multi-user.target ufw=Status: active' 'keys-only-without-key=1' 'key-added=0 keys=1' 'key-again=1' 'keys-only=0'
+                     'key-login=0' 'password-login=255 Permission denied \(publickey\)' 'tmux-on-ssh=1') ;;
+  esac
+  for want in "${extra[@]}"; do
     grep -qE -- "^$id\.$want" playbook.log || { echo "MISSING (playbook $id): $want"; fail=1; }
   done
 done

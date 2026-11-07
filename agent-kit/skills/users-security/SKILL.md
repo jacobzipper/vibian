@@ -34,7 +34,7 @@ The installer sets up sshd with **password login off**: only keys work.
 ssh-keygen -t ed25519 -C "<user>@<host>"        # the user's own key, for GitHub etc.
 install -m 700 -d ~/.ssh; echo "<pubkey>" >> ~/.ssh/authorized_keys; chmod 600 ~/.ssh/authorized_keys
 ```
-- sshd settings go in drop-ins, `/etc/ssh/sshd_config.d/50-vibian-*.conf`. Check with `sudo sshd -t` before `sudo systemctl reload ssh`. Reload, don't restart, while connected over ssh.
+- sshd settings go in drop-ins, `/etc/ssh/sshd_config.d/01-vibian-*.conf`. sshd keeps the first value it reads, and `50-cloud-init.conf` often sets `PasswordAuthentication yes`, so a later file loses. Check with `sudo sshd -t` before `sudo systemctl reload ssh`. Reload, don't restart, while connected over ssh.
 - Don't turn password login on without asking; if the machine is reachable from the internet, recommend `fail2ban` or Tailscale instead (see `networking`).
 - No ssh server wanted at all: `sudo systemctl disable --now ssh.socket ssh.service`.
 
