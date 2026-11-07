@@ -29,7 +29,7 @@ vibian export --publish            # public GitHub repo with topic vibian-rice (
 - After exporting, **write RICE.md's top section with the user**: what it's for, the look, key bindings worth knowing. Take a screenshot (`grim screenshots/desktop.png` on wlroots) if there isn't one. Show the user `git -C ~/vibian-rice show --stat` before `--publish`. Publishing is public: always ask first.
 
 ## Applying
-`vibian apply github:user/repo` clones the rice to `~/.local/share/vibian/rices/`, prints a plan (packages to install, files new and overwritten, services, scripts, the source hardware) and starts you with that plan. Then:
+Rices that ship with Vibian are applied by name (`vibian apply nhk`; `vibian apply` with no argument lists them). `vibian apply github:user/repo` clones the rice to `~/.local/share/vibian/rices/`, prints a plan (packages to install, files new and overwritten, services, scripts, the source hardware) and starts you with that plan. Then:
 1. Read `RICE.md`, `vibian.yaml`, and skim `ledger/ledger.md` for gotchas the author hit.
 2. `vibian snap "apply rice <name>"`.
 3. **Packages.** `apt-get install` what's missing. A package missing from this release: look for the renamed one (`apt search`), a flatpak, or the author's ledger entry for where it came from. Add third-party sources from `system/etc/apt` only after telling the user which ones.

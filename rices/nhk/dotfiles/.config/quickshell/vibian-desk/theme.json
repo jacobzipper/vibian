@@ -1,0 +1,15 @@
+{
+  "accent": "ff79b0",
+  "background": "16121f",
+  "fg": "ece1f0",
+  "dim": "a597b5",
+  "faint": "6b5a80",
+  "red": "e05561",
+  "yellow": "f6d57e",
+  "green": "8fd694",
+  "font": "Maple Mono NF",
+  "mono": "Maple Mono NF",
+  "display": "Dela Gothic One",
+  "clock": "DotGothic16",
+  "radius": 4
+}

@@ -19,6 +19,7 @@ mkdir -p "$pkg/usr/bin" "$pkg/usr/share/vibian"
 (cd "$repo" && CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=$VERSION" -o "$pkg/usr/bin/vibian" ./cmd/vibian)
 cp -a "$repo/agent-kit" "$pkg/usr/share/vibian/agent"
 cp -a "$repo/playbooks" "$pkg/usr/share/vibian/playbooks"
+cp -a "$repo/rices" "$pkg/usr/share/vibian/rices"
 cp "$repo/docs/assets/vibian-logo-dark.png" "$pkg/usr/share/vibian/vibian-logo.png"
 mkdir -p "$pkg/DEBIAN"
 cat > "$pkg/DEBIAN/control" <<CTL

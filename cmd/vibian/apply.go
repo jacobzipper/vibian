@@ -28,7 +28,7 @@ func cmdApply(args []string) error {
 		return err
 	}
 	if len(pos) != 1 {
-		return errors.New("usage: vibian apply <github:user/repo | git url | dir> [--dry-run] [--scripts-only] [--yes]")
+		return errors.New("usage: vibian apply <github:user/repo | git url | dir | built-in rice> [--dry-run] [--scripts-only] [--yes]" + builtinRices())
 	}
 	dir, err := fetchRice(pos[0])
 	if err != nil {
@@ -67,11 +67,37 @@ func cmdApply(args []string) error {
 
 var ghShort = regexp.MustCompile(`^(?:github:)?([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)$`)
 
-// fetchRice returns a local directory holding the rice, cloning or updating
-// it under ~/.local/share/vibian/rices.
+// riceDir holds the rices that ship with Vibian, applied by name.
+var riceDir = "/usr/share/vibian/rices"
+
+func builtinRices() string {
+	if d := os.Getenv("VIBIAN_RICES"); d != "" {
+		riceDir = d
+	}
+	files, _ := filepath.Glob(filepath.Join(riceDir, "*", "vibian.yaml"))
+	var names []string
+	for _, f := range files {
+		names = append(names, filepath.Base(filepath.Dir(f)))
+	}
+	if len(names) == 0 {
+		return ""
+	}
+	return "\nbuilt-in rices: " + strings.Join(names, ", ")
+}
+
+// fetchRice returns a local directory holding the rice: a directory, a
+// built-in rice by name, or a git repo cloned or updated under
+// ~/.local/share/vibian/rices.
 func fetchRice(src string) (string, error) {
 	if fi, err := os.Stat(src); err == nil && fi.IsDir() {
 		return filepath.Abs(src)
+	}
+	builtinRices()
+	if !strings.ContainsAny(src, "/:") {
+		if _, err := os.Stat(filepath.Join(riceDir, src, "vibian.yaml")); err == nil {
+			return filepath.Join(riceDir, src), nil
+		}
+		return "", fmt.Errorf("%s: no built-in rice by that name (not a directory, github:user/repo or git URL either)%s", src, builtinRices())
 	}
 	url := src
 	if m := ghShort.FindStringSubmatch(src); m != nil {

@@ -1,0 +1,15 @@
+# A Vibian rice: `vibian apply` hands this and RICE.md to your agent.
+name: nhk
+vibian: 0.1
+base: Ubuntu 26.04
+exported: 2026-11-07
+playbooks:
+  - quickshell-desk
+apt:
+  - foot
+  - unzip
+  - fontconfig
+dotfiles:
+  - .config/quickshell/vibian-desk/theme.json
+  - .config/foot/foot.ini
+  - .local/share/backgrounds/nhk

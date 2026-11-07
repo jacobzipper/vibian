@@ -146,7 +146,7 @@ vibian undo [<ledger-id>|--last|--pair <n>|--to <snapshot>]   # snapper undochan
 vibian history [-n N] [--json]     # ledger entries joined to their snapshots, plus unlogged pairs
 vibian doctor                      # GPU/driver/SB/firmware/network/audio/snapper health, JSON too
 vibian export [DIR] [--add PATH] [--publish]   # machine → git repo (see 4.7)
-vibian apply <github:user/repo|path> [--dry-run|--scripts-only]   # hand a rice to your agent to replay
+vibian apply <github:user/repo|path|built-in name> [--dry-run|--scripts-only]   # hand a rice to your agent to replay
 vibian playbooks [list|show <id>]
 vibian mcp [computer] [--agent X]  # MCP servers on stdio: vibian-system, vibian-computer
 vibian powers [root|confirm|scoped]    # change the privilege mode later
@@ -257,7 +257,7 @@ vibian approve [<id>|--deny <id>]  # …the owner's OK (their own sudo password)
   - A desktop missing from the archive (niri in 26.04) is built from its upstream release. The source and vendored crates are pinned by sha256, the build runs offline with the archive's Rust, it installs to `/usr/local`, and the build dependencies are removed afterwards.
   - One login screen at a time: each `system.sh` disables the other display managers (greetd, sddm, gdm3, lightdm) before enabling its own. The tiling playbooks also turn off Ubuntu's global user units for waybar, mako, hypridle and hyprpolkitagent, which would otherwise start inside Plasma or GNOME; their configs start these themselves. SDDM and GDM preselect the playbook's session (SDDM's state file, AccountsService).
 - v1 set: hyprland · kde-plasma · gnome · niri · sway · i3 · xfce · cosmic · quickshell-desk (the generalised NHK desk) · headless.
-- Themes are rices on top of playbooks. **`nhk`** is the first one: the flagship case study, scrubbed of personal bits.
+- Themes are rices on top of playbooks. **`nhk`** is the first one: the flagship case study, scrubbed of personal bits. **Done (2026-11-07)** in `rices/nhk/`, shipped in `/usr/share/vibian/rices/` and applied by name (`vibian apply nhk`). It's `quickshell-desk` with a `theme.json` (the desk's colours, fonts and corner radius, which the playbook creates empty and never overwrites), the laptop's palette and OFL fonts (pinned downloads), foot colours, and original wallpapers made for Vibian. None of the laptop's anime-derived art ships.
 - **Remote-access playbook:** talk to your OS agent from your phone (OpenClaw channels, Tailscale ssh, a web UI).
 
 ### 4.9 Optional component: Ask overlay and assistant panel
