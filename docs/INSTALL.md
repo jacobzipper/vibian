@@ -62,7 +62,7 @@ Vibian logs you in on the first console and starts onboarding: wifi if you're no
 The release ISOs are built by [`.github/workflows/release.yml`](../.github/workflows/release.yml). To build one locally you need `xorriso`, Go 1.24+ and the matching Ubuntu 26.04.1 Server ISO:
 
 ```bash
-curl -LO https://cdimage.ubuntu.com/releases/26.04.1/release/ubuntu-26.04.1-live-server-amd64.iso
+curl -LO https://releases.ubuntu.com/26.04.1/ubuntu-26.04.1-live-server-amd64.iso
 bash iso/build.sh ubuntu-26.04.1-live-server-amd64.iso vibian-amd64.iso
 # arm64, built on any machine:
 VIBIAN_ARCH=arm64 bash iso/build.sh ubuntu-26.04.1-live-server-arm64.iso vibian-arm64.iso

@@ -50,9 +50,13 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
-      - run: sudo apt-get update -q && sudo apt-get install -y -q xorriso
+      - run: sudo apt-get update -q && sudo apt-get install -y -q xorriso fakeroot
       - name: Fetch Ubuntu Server
-        run: curl -fsSL --retry 3 -o ubuntu.iso "https://cdimage.ubuntu.com/releases/26.04.1/release/ubuntu-26.04.1-live-server-$ARCH.iso"
+        run: |
+          # amd64 is on releases.ubuntu.com, the other architectures on cdimage
+          base=https://cdimage.ubuntu.com/releases/26.04.1/release
+          [ "$ARCH" = amd64 ] && base=https://releases.ubuntu.com/26.04.1
+          curl -fsSL --retry 3 -o ubuntu.iso "$base/ubuntu-26.04.1-live-server-$ARCH.iso"
       - name: Build the installer
         run: |
           iso=vibian-${GITHUB_REF_NAME#v}-$ARCH.iso

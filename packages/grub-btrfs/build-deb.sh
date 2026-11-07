@@ -22,7 +22,9 @@ echo "$SHA256  $work/src.tar.gz" | sha256sum -c --quiet -
 tar -xzf "$work/src.tar.gz" -C "$work"
 
 pkg=$work/pkg
-make -s -C "$work/grub-btrfs-$VERSION" install DESTDIR="$pkg" \
+# the Makefile refuses to run unless it's root, even with DESTDIR
+root=(); [ "$(id -u)" = 0 ] || root=(fakeroot)
+"${root[@]}" make -s -C "$work/grub-btrfs-$VERSION" install DESTDIR="$pkg" \
   SYSTEMD=true OPENRC=false GRUB_UPDATE_EXCLUDE=true INSTALL_DOCS=true >/dev/null
 rm -rf "$pkg/usr/lib/initcpio"  # Arch-only overlay hook
 # Snapshots are read-only: have dracut boot them under a RAM overlay
