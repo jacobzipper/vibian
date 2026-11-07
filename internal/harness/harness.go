@@ -46,6 +46,9 @@ type Harness struct {
 	// PromptArgs starts an interactive session with a first message. Nil when
 	// a first message would fail because login happens inside the session.
 	PromptArgs func(prompt string) []string
+	// OneShot runs one request with no session and exits: the arguments
+	// after the binary, given the powers flags from LaunchArgs.
+	OneShot func(prompt string, flags []string) []string
 	// StateDirs hold the harness's own sessions, caches and databases,
 	// relative to $HOME. Changes there don't count as the session changing
 	// the system.
@@ -67,6 +70,7 @@ var All = []Harness{
 		StateDirs:    []string{".claude", ".claude.json"},
 		AutoFlags:    []string{"--dangerously-skip-permissions"},
 		PromptArgs:   func(p string) []string { return []string{p} },
+		OneShot:      func(p string, f []string) []string { return append(f, "-p", p) },
 	},
 	{
 		ID: "codex", Name: "Codex CLI", Vendor: "OpenAI", Licence: "Apache-2.0", Binary: "codex",
@@ -77,6 +81,10 @@ var All = []Harness{
 		StateDirs:    []string{".codex"},
 		AutoFlags:    []string{"--dangerously-bypass-approvals-and-sandbox"},
 		PromptArgs:   func(p string) []string { return []string{p} },
+		// exec refuses to run outside a git repo without the flag
+		OneShot: func(p string, f []string) []string {
+			return append(append([]string{"exec", "--skip-git-repo-check"}, f...), p)
+		},
 	},
 	{
 		ID: "gemini", Name: "Gemini CLI", Vendor: "Google", Licence: "Apache-2.0", Binary: "gemini",
@@ -87,6 +95,7 @@ var All = []Harness{
 		StateDirs:    []string{".gemini"},
 		AutoFlags:    []string{"--approval-mode=yolo"},
 		PromptArgs:   func(p string) []string { return []string{"-i", p} },
+		OneShot:      func(p string, f []string) []string { return append(f, "-p", p) },
 	},
 	{
 		ID: "opencode", Name: "opencode", Vendor: "Anomaly", Licence: "MIT", Binary: "opencode",
@@ -104,6 +113,7 @@ var All = []Harness{
 		ConfirmFlags: []string{"--standalone"},
 		ConfirmEnv:   []string{`OPENCODE_CONFIG_CONTENT={"permissions":[{"action":"shell","resource":"*","effect":"ask"},{"action":"edit","resource":"*","effect":"ask"}]}`},
 		PromptArgs:   func(p string) []string { return []string{"--prompt", p} },
+		OneShot:      func(p string, f []string) []string { return append(append([]string{"run"}, f...), p) },
 	},
 	{
 		ID: "openclaw", Name: "OpenClaw", Vendor: "OpenClaw", Licence: "MIT", Binary: "openclaw",
@@ -113,6 +123,11 @@ var All = []Harness{
 		SkillDirs:    []string{agentsSkills},
 		StateDirs:    []string{".openclaw"},
 		PromptArgs:   func(p string) []string { return []string{"tui", "--message", p} },
+		// --local: the embedded agent; without it, the turn goes through a
+		// gateway that needs its own credentials
+		OneShot: func(p string, f []string) []string {
+			return append(append([]string{"agent", "--local"}, f...), "--message", p)
+		},
 		// Its default runs commands without asking; both presets work
 		// offline and persist in ~/.openclaw/state.
 		PowersCmd: func(p Powers) []string {
@@ -136,6 +151,7 @@ var All = []Harness{
 		SkillDirs:    []string{agentsSkills},
 		StateDirs:    []string{".pi"},
 		NoConfirm:    "pi has no approval prompts: it runs commands and edits files without asking. Only sudo asks for your password.",
+		OneShot:      func(p string, f []string) []string { return append(f, "-p", p) },
 	},
 	{
 		ID: "cursor", Name: "Cursor CLI", Vendor: "Anysphere", Licence: "proprietary", Binary: "agent",
@@ -149,6 +165,7 @@ var All = []Harness{
 		StateDirs:    []string{".cursor", ".local/share/cursor-agent"},
 		AutoFlags:    []string{"--force"},
 		PromptArgs:   func(p string) []string { return []string{p} },
+		OneShot:      func(p string, f []string) []string { return append(f, "-p", p) },
 	},
 }
 

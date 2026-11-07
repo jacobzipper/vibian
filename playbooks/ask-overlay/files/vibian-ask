@@ -1,0 +1,10 @@
+#!/bin/sh
+# Vibian's Ask overlay (playbook ask-overlay). gtk4-layer-shell has to load
+# before libwayland-client, so on Wayland it is preloaded.
+if [ -n "${WAYLAND_DISPLAY:-}" ]; then
+  for lib in /usr/lib/*/libgtk4-layer-shell.so.0; do
+    [ -e "$lib" ] && LD_PRELOAD="$lib${LD_PRELOAD:+:$LD_PRELOAD}" && export LD_PRELOAD
+    break
+  done
+fi
+exec python3 /usr/local/lib/vibian/ask-overlay.py "$@"

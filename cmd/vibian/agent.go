@@ -133,42 +133,56 @@ func runAgent(cfg harness.Config, prompt string) error {
 		argv = append(argv, h.PromptArgs(prompt)...)
 	}
 
-	before, _ := ledger.All()
-	var pre snap.Set
-	if snap.Available() {
-		pre, err = snap.Pre("agent session: " + h.Name)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "vibian: no session snapshot:", err)
-		}
-	}
-
 	home, _ := os.UserHomeDir()
 	c := exec.Command(bin, argv...)
 	c.Dir = home
 	c.Env = harness.Env(append(env, "VIBIAN_AGENT="+h.ID)...)
-	runErr := run(c)
-
-	if pre != nil {
-		endTurns(h)
-		post, err := snap.Post(pre, "agent session: "+h.Name)
-		if err == nil && changed(pre, post, sessionNoise(h, home)) {
-			after, _ := ledger.All()
-			if len(after) == len(before) {
-				e, _ := ledger.Add(ledger.Entry{
-					Agent:     h.ID,
-					Summary:   "session ended without a ledger entry (auto-recorded)",
-					Snapshots: snap.Pair(pre, post),
-					Gotchas:   []string{"written by `vibian agent`: see `snapper -c root status` on the pair for what changed"},
-				})
-				fmt.Printf("\nvibian: the session changed files without a ledger entry; recorded it as %s.\n", e.ID)
-			}
-		}
+	auto, runErr := inSnapshots(h, "agent session: "+h.Name, "session ended without a ledger entry (auto-recorded)", true, func() error { return run(c) })
+	if auto != "" {
+		fmt.Printf("\nvibian: the session changed files without a ledger entry; recorded it as %s.\n", auto)
 	}
 	var exit *exec.ExitError
 	if errors.As(runErr, &exit) {
 		return nil // the harness's own exit status isn't ours to report
 	}
 	return runErr
+}
+
+// inSnapshots runs fn between a pre and post snapshot. If fn changed files
+// but nobody wrote a ledger entry, it writes one with summary and returns its
+// id. A session (turns) also closes the per-turn snapshots its hooks opened.
+func inSnapshots(h harness.Harness, desc, summary string, turns bool, fn func() error) (string, error) {
+	if !snap.Available() {
+		return "", fn()
+	}
+	before, _ := ledger.All()
+	pre, err := snap.Pre(desc)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "vibian: no snapshot:", err)
+		return "", fn()
+	}
+	runErr := fn()
+	if turns {
+		endTurns(h)
+	}
+	home, _ := os.UserHomeDir()
+	post, err := snap.Post(pre, desc)
+	if err != nil || !changed(pre, post, sessionNoise(h, home)) {
+		return "", runErr
+	}
+	if after, _ := ledger.All(); len(after) != len(before) {
+		return "", runErr
+	}
+	e, err := ledger.Add(ledger.Entry{
+		Agent:     h.ID,
+		Summary:   summary,
+		Snapshots: snap.Pair(pre, post),
+		Gotchas:   []string{"written by `vibian agent`: see `snapper -c root status` on the pair for what changed"},
+	})
+	if err != nil {
+		return "", runErr
+	}
+	return e.ID, runErr
 }
 
 // changed reports whether anything outside noise differs between the pairs.

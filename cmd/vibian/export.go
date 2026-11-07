@@ -351,8 +351,8 @@ func aptHistory() string {
 }
 
 // desktopPkgs maps a package each desktop playbook installs to the
-// playbook's ID. niri isn't in the archive: its playbook builds it into
-// /usr/local/bin.
+// playbook's ID. niri and Quickshell aren't in the archive: their playbooks
+// build them into /usr/local/bin.
 var desktopPkgs = map[string]string{"hyprland": "hyprland", "sway": "sway", "gnome-shell": "gnome",
 	"plasma-desktop": "kde-plasma", "i3-wm": "i3", "xfce4-session": "xfce", "cosmic-session": "cosmic"}
 
@@ -371,6 +371,12 @@ func desktops() []string {
 	}
 	if _, err := os.Stat("/usr/local/bin/niri"); err == nil {
 		ids = append(ids, "niri")
+	}
+	if _, err := os.Stat("/usr/local/bin/quickshell"); err == nil {
+		ids = append(ids, "quickshell-desk")
+	}
+	if _, err := os.Stat("/usr/local/bin/vibian-ask"); err == nil {
+		ids = append(ids, "ask-overlay")
 	}
 	return rice.Sorted(ids)
 }

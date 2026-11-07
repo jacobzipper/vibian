@@ -26,7 +26,8 @@ func cmdHook(args []string) error {
 	fs.SetOutput(os.Stderr)
 	agent := fs.String("agent", os.Getenv("VIBIAN_AGENT"), "harness id")
 	fs.Parse(args[1:])
-	if !snap.Available() {
+	// an ask (vibian ask) has its own snapshot pair
+	if !snap.Available() || os.Getenv("VIBIAN_ASK") != "" {
 		return nil
 	}
 	h, _ := harness.Get(*agent)

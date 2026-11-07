@@ -14,6 +14,8 @@ const usage = `vibian: an OS run by your coding agent
 
   vibian onboard                      first-boot setup (re-runnable)
   vibian agent [run|set <id>|list]    launch or pick your agent
+  vibian ask [--wait] "request"       the agent does it in the background (notifies when done)
+  vibian asks [ID|stop ID] [--json]   recent asks and their answers
   vibian powers [root|confirm|scoped] change what the agent may do
   vibian sudo --why "…" -- cmd …      (scoped powers) run one command as root, logged
   vibian approve [<id>|--deny <id>]   OK a risky command the agent asked to run
@@ -44,6 +46,10 @@ func main() {
 		err = cmdOnboard(args)
 	case "agent":
 		err = cmdAgent(args)
+	case "ask":
+		err = cmdAsk(args)
+	case "asks":
+		err = cmdAsks(args)
 	case "powers":
 		err = cmdPowers(args)
 	case "snap":
