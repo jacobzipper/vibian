@@ -1,0 +1,15 @@
+# A Vibian rice: `vibian apply` hands this and RICE.md to your agent.
+name: tape
+vibian: 0.1
+base: Ubuntu 26.04
+exported: 2026-11-07
+playbooks:
+  - hyprland
+apt:
+  - foot
+  - curl
+  - fontconfig
+  - python3
+dotfiles:
+  - .local/bin/tape
+  - .config/foot/foot.ini

@@ -54,6 +54,12 @@ vibian undo L-0042                             # put one change back
 vibian undo --to 7                             # or roll the whole machine back
 ```
 
+## "Make me a Bloomberg terminal"
+
+<img src="rices/tape/screenshots/tape.png" alt="tape on Vibian: an amber-on-black market terminal with a command line, a watchlist, an intraday price chart, headlines, FX, rates, commodities, crypto, the day's movers and world clocks" width="900">
+
+Ask for a trading desk and the agent applies **[tape](rices/tape/RICE.md)**, a rice that ships with Vibian (`vibian apply tape`). It's Hyprland in amber on black with one full-screen, keyboard-driven market terminal: type `NVDA 1Y` and press Enter to chart it, `ADD AMD` to watch it. Quotes, charts and headlines come from Yahoo Finance's free, delayed feeds, so there's no account and no key. It's one Python file, so the agent can add the panel you want next.
+
 ## Download
 
 **Vibian 0.7.1 is out**, for **amd64** (Intel and AMD PCs) and **arm64** (ARM machines with UEFI, and ARM VMs like UTM or Parallels on Apple Silicon). Get the ISO from **[Releases](https://github.com/jacobzipper/vibian/releases)**.
@@ -199,7 +205,8 @@ Playful name, serious engineering: btrfs layout, snapshot boot, an append-only l
 | Desktop playbooks | ✅ all ten: a short interview, a root script, a user script, and a verify script that must print `VERIFY OK`. Each was also booted to the desktop by hand ([Hyprland](playbooks/hyprland/screenshots/desktop.png), [Sway](playbooks/sway/screenshots/desktop.png), [niri](playbooks/niri/screenshots/desktop.png), [i3](playbooks/i3/screenshots/desktop.png), [XFCE](playbooks/xfce/screenshots/desktop.png), [COSMIC](playbooks/cosmic/screenshots/desktop.png), [KDE](playbooks/kde-plasma/screenshots/desktop.png), [GNOME](playbooks/gnome/screenshots/desktop.png), [Quickshell desk](playbooks/quickshell-desk/screenshots/desktop.png)) |
 | Ask overlay | ✅ `vibian ask "make the text bigger"` runs the agent in the background between a snapshot pair and sends a notification when it's done; `vibian asks` lists them. The [Ask overlay](playbooks/ask-overlay/PLAYBOOK.md) puts it on SUPER+/ in any desktop ([screenshot](playbooks/ask-overlay/screenshots/overlay.png)) |
 | nhk rice | ✅ `vibian apply nhk`: the [first rice](rices/nhk/RICE.md) ships with Vibian. The Quickshell desk in late-night purple, pink and lamp yellow, with Dela Gothic One, DotGothic16 and Maple Mono, three original wallpapers, and widgets for stocks and Mullvad VPN. Any desk is themed the same way, through `theme.json` |
-| Examples (Bloomberg desk, startup mission control, grandma mode) | ⏳ |
+| tape rice | 🚧 `vibian apply tape`: a keyboard-driven market terminal on Hyprland, amber on black: watchlist, charts, news, FX, rates, commodities, crypto. The app is [tested offline](cmd/vibian/rices_test.go); the VM test is next |
+| More examples (startup mission control, grandma mode) | ⏳ |
 
 </details>
 

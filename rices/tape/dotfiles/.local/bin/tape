@@ -1,0 +1,779 @@
+#!/usr/bin/python3 -I
+"""tape: a keyboard-driven market terminal, amber on black.
+
+Quotes, charts and headlines come from Yahoo Finance's public chart API and
+RSS feeds (no key, delayed). Type a ticker and press Enter to chart it.
+
+  tape                 run it
+  tape --demo          made-up data, no network (tests, screenshots)
+  tape --dump 160x45   print one frame as text and exit (with --demo: offline)
+
+Commands (just start typing): AAPL, ADD NVDA, DEL TSLA, 1D 5D 1M 6M 1Y 5Y,
+NEWS, HELP, QUIT. Keys: up/down pick a row, Enter charts it, F5 refreshes,
+Esc clears the command line. The watchlist lives in ~/.config/tape/watchlist.json.
+"""
+import curses, json, math, os, random, sys, threading, time, urllib.parse, urllib.request
+import xml.etree.ElementTree as ET
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timezone
+
+try:
+    from zoneinfo import ZoneInfo
+except ImportError:  # pragma: no cover
+    ZoneInfo = None
+
+UA = {"User-Agent": "Mozilla/5.0"}  # Yahoo answers 429 to Python's own
+CONF = os.path.join(os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config"), "tape")
+DEFAULT_WATCH = ["AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "TSLA", "AMD",
+                 "AVGO", "JPM", "V", "XOM", "LLY", "COST", "NFLX", "PLTR"]
+INDICES = [("S&P 500", "^GSPC"), ("NASDAQ", "^IXIC"), ("DOW", "^DJI"), ("RUSS 2K", "^RUT"),
+           ("VIX", "^VIX"), ("US 10Y", "^TNX"), ("DXY", "DX-Y.NYB"), ("WTI", "CL=F"),
+           ("GOLD", "GC=F"), ("BTC", "BTC-USD")]
+MARKETS = [("FX", [("EUR/USD", "EURUSD=X"), ("GBP/USD", "GBPUSD=X"), ("USD/JPY", "JPY=X"), ("USD/CNH", "CNH=X")]),
+           ("RATES", [("US 3M", "^IRX"), ("US 5Y", "^FVX"), ("US 10Y", "^TNX"), ("US 30Y", "^TYX")]),
+           ("CMDTY", [("WTI", "CL=F"), ("BRENT", "BZ=F"), ("GOLD", "GC=F"), ("NAT GAS", "NG=F")]),
+           ("CRYPTO", [("BTC", "BTC-USD"), ("ETH", "ETH-USD"), ("SOL", "SOL-USD"), ("XRP", "XRP-USD")])]
+RANGES = {"1D": ("1d", "5m"), "5D": ("5d", "15m"), "1M": ("1mo", "1h"),
+          "6M": ("6mo", "1d"), "1Y": ("1y", "1d"), "5Y": ("5y", "1wk")}
+CLOCKS = [("NY", "America/New_York"), ("LDN", "Europe/London"), ("FRA", "Europe/Berlin"),
+          ("HK", "Asia/Hong_Kong"), ("TKY", "Asia/Tokyo")]
+SPARK = "▁▂▃▄▅▆▇█"
+
+# colour pairs: the terminal's own palette, so the theme (foot.ini) decides the exact shades
+AMBER, UP, DOWN, DIM, HEAD, SEL, WHITE, KEY = range(1, 9)
+
+
+# ---------------------------------------------------------------- data
+
+def fetch_json(url):
+    with urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=8) as r:
+        return json.load(r)
+
+
+def chart(sym, rng="1d", interval="5m"):
+    """{symbol, name, price, prev, change, pct, high, low, currency, times, points} or {symbol, error}."""
+    url = ("https://query1.finance.yahoo.com/v8/finance/chart/%s?range=%s&interval=%s"
+           % (urllib.parse.quote(sym, safe=""), rng, interval))
+    try:
+        res = fetch_json(url)["chart"]["result"][0]
+    except Exception as e:  # network, HTTP, unknown ticker
+        return {"symbol": sym, "error": str(e)[:60]}
+    m = res.get("meta", {})
+    raw = (res.get("indicators", {}).get("quote") or [{}])[0].get("close") or []
+    ts = res.get("timestamp") or []
+    pairs = [(t, c) for t, c in zip(ts, raw) if c is not None]
+    price = m.get("regularMarketPrice") or (pairs[-1][1] if pairs else None)
+    prev = m.get("chartPreviousClose") if rng != "1d" else (m.get("previousClose") or m.get("chartPreviousClose"))
+    if price is None:
+        return {"symbol": sym, "error": "no data"}
+    if rng != "1d" and pairs:
+        prev = pairs[0][1]
+    change = price - prev if prev else 0.0
+    return {"symbol": sym, "name": m.get("shortName") or m.get("longName") or sym,
+            "price": price, "prev": prev, "change": change,
+            "pct": change / prev * 100 if prev else 0.0,
+            "high": m.get("regularMarketDayHigh"), "low": m.get("regularMarketDayLow"),
+            "volume": m.get("regularMarketVolume"), "currency": m.get("currency", ""),
+            "exchange": m.get("fullExchangeName") or m.get("exchangeName") or "",
+            "times": [p[0] for p in pairs], "points": [p[1] for p in pairs]}
+
+
+def news(sym):
+    url = ("https://feeds.finance.yahoo.com/rss/2.0/headline?s=%s&region=US&lang=en-US"
+           % urllib.parse.quote(sym, safe=","))
+    try:
+        with urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=8) as r:
+            root = ET.fromstring(r.read())
+    except Exception:
+        return []
+    out = []
+    for it in root.iter("item"):
+        title = (it.findtext("title") or "").strip()
+        when = it.findtext("pubDate") or ""
+        try:
+            t = datetime.strptime(when.strip(), "%a, %d %b %Y %H:%M:%S %z").timestamp()
+        except ValueError:
+            t = 0
+        if title:
+            out.append({"time": t, "title": title})
+    return sorted(out, key=lambda n: -n["time"])[:40]
+
+
+class Demo:
+    """Made-up but plausible data, the same every run: tests and screenshots."""
+    BASE = {"AAPL": 238.4, "MSFT": 512.7, "NVDA": 186.2, "AMZN": 231.9, "GOOGL": 244.1, "META": 742.3,
+            "TSLA": 431.5, "AMD": 241.8, "AVGO": 352.6, "JPM": 309.4, "V": 344.2, "XOM": 114.7,
+            "LLY": 861.3, "COST": 938.0, "NFLX": 1184.5, "PLTR": 181.6, "^GSPC": 6721.4, "^IXIC": 22950.8,
+            "^DJI": 46987.2, "^RUT": 2461.3, "^VIX": 17.4, "^TNX": 4.112, "DX-Y.NYB": 99.62, "CL=F": 61.84,
+            "GC=F": 4012.5, "BTC-USD": 104250.0, "EURUSD=X": 1.1532, "GBPUSD=X": 1.3121, "JPY=X": 152.84,
+            "CNH=X": 7.1235, "^IRX": 3.842, "^FVX": 3.701, "^TYX": 4.684, "BZ=F": 65.41, "NG=F": 4.312,
+            "ETH-USD": 3482.0, "SOL-USD": 161.2, "XRP-USD": 2.284}
+    HEADLINES = [
+        "Chipmakers extend rally as data-centre orders beat estimates",
+        "Treasury yields edge higher ahead of next week's inflation print",
+        "Oil slips as inventories build for a third straight week",
+        "Retail earnings: margins hold up despite softer holiday guidance",
+        "Fed speakers signal patience; futures price one cut by spring",
+        "Dollar steadies against the yen after intervention warnings",
+        "Cloud spending outlook lifts software names in late trade",
+        "Gold holds near record as central-bank buying continues",
+        "Bank stocks firm as loan growth picks up in the fourth quarter",
+        "EV makers mixed after delivery numbers; pricing pressure persists",
+        "Bitcoin funds see fourth week of inflows",
+        "Small caps lag as investors rotate back into megacaps",
+    ]
+
+    def chart(self, sym, rng="1d", interval="5m"):
+        base = self.BASE.get(sym, 100.0 + (sum(map(ord, sym)) % 400))
+        rnd = random.Random(sym + rng)
+        n = {"1d": 78, "5d": 130, "1mo": 140, "6mo": 126, "1y": 252, "5y": 260}.get(rng, 78)
+        calm = sym.startswith("^") or "=" in sym or "-" in sym  # indices, FX, futures, crypto pairs
+        drift = rnd.uniform(-0.025, 0.03) * (0.35 if calm else 1) * {"1d": 1, "5d": 1.5, "1mo": 2, "6mo": 4, "1y": 6, "5y": 12}.get(rng, 1)
+        vol = base * (0.0008 if calm else 0.0024) * (1 if rng == "1d" else 2.2)
+        p, pts = base / (1 + drift), []
+        for i in range(n):
+            p += vol * rnd.gauss(0, 1) + base * drift / n
+            pts.append(round(p, 4))
+        if rng != "1d":  # end where today's chart ends
+            k = self.chart(sym)["price"] / pts[-1]
+            pts = [round(v * k, 4) for v in pts]
+        prev, price = pts[0] * (1 + rnd.uniform(-0.004, 0.004)), pts[-1]
+        step = {"1d": 300, "5d": 900, "1mo": 3600, "6mo": 86400, "1y": 86400, "5y": 604800}.get(rng, 300)
+        t0 = 1794000000 - step * n
+        return {"symbol": sym, "name": self.NAMES.get(sym, sym), "price": price, "prev": prev,
+                "change": price - prev, "pct": (price - prev) / prev * 100, "high": max(pts), "low": min(pts),
+                "volume": int(rnd.uniform(8e6, 9e7)), "currency": "USD", "exchange": "NasdaqGS",
+                "times": [t0 + i * step for i in range(n)], "points": pts}
+
+    def news(self, sym):
+        rnd = random.Random(sym)
+        heads = self.HEADLINES[:]
+        rnd.shuffle(heads)
+        name = self.NAMES.get(sym, sym).split()[0]
+        heads.insert(1, "%s shares active after analyst lifts price target" % name)
+        return [{"time": 1794000000 - i * 1700 - rnd.randint(0, 900), "title": h} for i, h in enumerate(heads)]
+
+    NAMES = {"AAPL": "Apple Inc.", "MSFT": "Microsoft Corporation", "NVDA": "NVIDIA Corporation",
+             "AMZN": "Amazon.com, Inc.", "GOOGL": "Alphabet Inc.", "META": "Meta Platforms, Inc.",
+             "TSLA": "Tesla, Inc.", "AMD": "Advanced Micro Devices", "AVGO": "Broadcom Inc.",
+             "JPM": "JPMorgan Chase & Co.", "V": "Visa Inc.", "XOM": "Exxon Mobil Corporation",
+             "LLY": "Eli Lilly and Company", "COST": "Costco Wholesale", "NFLX": "Netflix, Inc.",
+             "PLTR": "Palantir Technologies"}
+
+
+class Feed:
+    """Fetches in the background; the UI only reads snapshots under the lock."""
+
+    def __init__(self, demo=False):
+        self.src = Demo() if demo else None
+        self.lock = threading.Lock()
+        self.quotes, self.charts, self.headlines = {}, {}, {}
+        self.updated = 0
+        self.busy = False
+        self.wake = threading.Event()
+
+    def _chart(self, sym, rng="1d", interval="5m"):
+        return self.src.chart(sym, rng, interval) if self.src else chart(sym, rng, interval)
+
+    def _news(self, sym):
+        return self.src.news(sym) if self.src else news(sym)
+
+    def refresh_quotes(self, syms):
+        syms = list(dict.fromkeys(syms))
+        with ThreadPoolExecutor(max_workers=10) as ex:
+            got = list(ex.map(self._chart, syms))
+        with self.lock:
+            for q in got:
+                if "error" not in q or q["symbol"] not in self.quotes:
+                    self.quotes[q["symbol"]] = q
+            self.updated = time.time()
+
+    def load(self, sym, rng):
+        r, i = RANGES[rng]
+        c = self._chart(sym, r, i)
+        n = self._news(sym)
+        with self.lock:
+            self.charts[(sym, rng)] = c
+            self.headlines[sym] = n
+            if "error" not in c and rng == "1D":
+                self.quotes[sym] = c
+
+
+# ---------------------------------------------------------------- formatting
+
+def fmt_price(v):
+    if v is None:
+        return "—"
+    a = abs(v)
+    if a >= 10000:
+        return "{:,.1f}".format(v)
+    if a >= 100:
+        return "{:,.2f}".format(v)
+    if a >= 1:
+        return "{:.3f}".format(v) if a < 10 else "{:.2f}".format(v)
+    return "{:.4f}".format(v)
+
+
+def fmt_chg(v):
+    return "—" if v is None else ("+" if v >= 0 else "") + fmt_price(v)
+
+
+def fmt_pct(v):
+    return "—" if v is None else "{:+.2f}%".format(v)
+
+
+def fmt_vol(v):
+    if not v:
+        return "—"
+    for unit, d in (("B", 1e9), ("M", 1e6), ("K", 1e3)):
+        if v >= d:
+            return "{:.1f}{}".format(v / d, unit)
+    return str(v)
+
+
+def spark(points, width):
+    if not points or width <= 0:
+        return " " * max(0, width)
+    step = len(points) / width
+    vals = [points[min(len(points) - 1, int(i * step))] for i in range(width)] if len(points) >= width else points
+    lo, hi = min(vals), max(vals)
+    span = (hi - lo) or 1
+    return "".join(SPARK[min(7, int((v - lo) / span * 7.999))] for v in vals).ljust(width)
+
+
+def braille(points, w, h, prev=None):
+    """Plot points into h rows of w braille cells. Returns (rows, prev_row or None)."""
+    if not points or w < 2 or h < 1:
+        return [" " * max(w, 0)] * max(h, 0), None
+    dw, dh = w * 2, h * 4
+    lo, hi = min(points), max(points)
+    if prev is not None:
+        lo, hi = min(lo, prev), max(hi, prev)
+    pad = (hi - lo) * 0.06 or abs(hi) * 0.01 or 1
+    lo, hi = lo - pad, hi + pad
+    grid = [[0] * w for _ in range(h)]
+    bits = ((0x01, 0x08), (0x02, 0x10), (0x04, 0x20), (0x40, 0x80))
+
+    def dot(x, y):
+        if 0 <= x < dw and 0 <= y < dh:
+            grid[y // 4][x // 2] |= bits[y % 4][x % 2]
+
+    def ypix(v):
+        return int(round((hi - v) / (hi - lo) * (dh - 1)))
+
+    n = len(points)
+    last = None
+    for x in range(dw):
+        if n > dw:
+            v = points[min(n - 1, int(x * n / dw))]
+        else:  # fewer points than dots: draw straight lines between them
+            f = x * (n - 1) / (dw - 1)
+            i = min(n - 2, int(f)) if n > 1 else 0
+            v = points[i] if n == 1 else points[i] + (points[i + 1] - points[i]) * (f - i)
+        y = ypix(v)
+        if last is not None:  # join to the previous column so steep moves stay connected
+            for yy in range(min(last, y), max(last, y) + 1):
+                dot(x, yy)
+        dot(x, y)
+        last = y
+    rows = ["".join(chr(0x2800 + c) for c in row) for row in grid]
+    prow = ypix(prev) // 4 if prev is not None else None
+    return rows, (prow, lo, hi)
+
+
+def clocks():
+    out = []
+    for label, zone in CLOCKS:
+        try:
+            t = datetime.now(ZoneInfo(zone)) if ZoneInfo else datetime.now(timezone.utc)
+            out.append("%s %s" % (label, t.strftime("%H:%M")))
+        except Exception:
+            pass
+    return out
+
+
+def nyse_status(now=None):
+    try:
+        t = now or datetime.now(ZoneInfo("America/New_York"))
+    except Exception:
+        return ""
+    mins = t.hour * 60 + t.minute
+    if t.weekday() >= 5:
+        return "NYSE CLOSED"
+    if 570 <= mins < 960:
+        return "NYSE OPEN"
+    if 240 <= mins < 570:
+        return "NYSE PRE"
+    if 960 <= mins < 1200:
+        return "NYSE POST"
+    return "NYSE CLOSED"
+
+
+# ---------------------------------------------------------------- screens
+
+class TextScreen:
+    """Renders into a character grid, for --dump and the tests."""
+
+    def __init__(self, w, h):
+        self.w, self.h = w, h
+        self.rows = [[" "] * w for _ in range(h)]
+
+    def put(self, y, x, s, attr=0):
+        if not 0 <= y < self.h or x >= self.w:
+            return
+        for i, ch in enumerate(s):
+            if 0 <= x + i < self.w:
+                self.rows[y][x + i] = ch
+
+    def text(self):
+        return "\n".join("".join(r).rstrip() for r in self.rows)
+
+
+class CursesScreen:
+    def __init__(self, win):
+        self.win = win
+        self.h, self.w = win.getmaxyx()
+
+    def put(self, y, x, s, attr=0):
+        if not 0 <= y < self.h or x >= self.w or x < 0:
+            return
+        s = s[: self.w - x]
+        if y == self.h - 1 and x + len(s) >= self.w:
+            s = s[: self.w - x - 1]  # curses can't write the bottom-right cell
+        try:
+            self.win.addstr(y, x, s, attr)
+        except curses.error:
+            pass
+
+
+# ---------------------------------------------------------------- app
+
+class App:
+    def __init__(self, feed, attrs=None):
+        self.feed = feed
+        self.watch = self.load_watch()
+        self.sel = 0
+        self.sym = self.watch[0] if self.watch else "AAPL"
+        self.rng = "1D"
+        self.cmd = ""
+        self.msg = "Type a ticker and press Enter.  HELP for commands."
+        self.help = False
+        self.a = attrs or {k: 0 for k in range(1, 9)}
+
+    # watchlist file
+    def load_watch(self):
+        try:
+            with open(os.path.join(CONF, "watchlist.json")) as f:
+                w = [str(s).upper() for s in json.load(f).get("tickers", []) if s]
+                if w:
+                    return w[:40]
+        except (OSError, ValueError, AttributeError):
+            pass
+        return DEFAULT_WATCH[:]
+
+    def save_watch(self):
+        try:
+            os.makedirs(CONF, exist_ok=True)
+            tmp = os.path.join(CONF, ".watchlist.json.tmp")
+            with open(tmp, "w") as f:
+                json.dump({"tickers": self.watch}, f, indent=2)
+            os.replace(tmp, os.path.join(CONF, "watchlist.json"))
+        except OSError as e:
+            self.msg = "Couldn't save the watchlist: %s" % e
+
+    def all_syms(self):
+        syms = self.watch + [s for _, s in INDICES]
+        for _, items in MARKETS:
+            syms += [s for _, s in items]
+        return syms
+
+    def run_cmd(self, text):
+        words = text.strip().upper().split()
+        if not words:
+            if self.watch:
+                self.open(self.watch[self.sel])
+            return "go"
+        w0 = words[0]
+        if w0 in ("Q", "QUIT", "EXIT"):
+            return "quit"
+        if w0 in ("HELP", "H", "?"):
+            self.help = not self.help
+            return "ok"
+        if w0 in RANGES:
+            self.rng = w0
+            self.msg = "%s %s" % (self.sym, w0)
+            return "load"
+        if w0 == "ADD" and len(words) > 1:
+            for s in words[1:]:
+                if s not in self.watch:
+                    self.watch.append(s)
+            self.save_watch()
+            self.msg = "Added %s" % " ".join(words[1:])
+            return "quotes"
+        if w0 in ("DEL", "RM"):
+            target = words[1:] or ([self.watch[self.sel]] if self.watch else [])
+            self.watch = [s for s in self.watch if s not in target]
+            self.sel = min(self.sel, max(0, len(self.watch) - 1))
+            self.save_watch()
+            self.msg = "Removed %s" % " ".join(target)
+            return "ok"
+        if w0 == "NEWS":
+            self.msg = "Headlines for %s" % self.sym
+            return "load"
+        if len(words) == 2 and words[1] in RANGES:
+            self.rng = words[1]
+        self.open(w0)
+        return "load"
+
+    def open(self, sym):
+        self.sym = sym
+        if sym in self.watch:
+            self.sel = self.watch.index(sym)
+        self.msg = "%s <GO>" % sym
+
+    # drawing
+    def c(self, k, bold=False):
+        return self.a.get(k, 0) | (self.a.get("bold", 0) if bold else 0)
+
+    def header(self, scr, y, x, w, title, right=""):
+        bar = (" " + title).ljust(w)
+        if right:
+            bar = bar[: max(0, w - len(right) - 1)] + right + " "
+        scr.put(y, x, bar[:w], self.c(HEAD, True))
+
+    def draw(self, scr):
+        W, H = scr.w, scr.h
+        with self.feed.lock:
+            quotes = dict(self.feed.quotes)
+            ch = self.feed.charts.get((self.sym, self.rng))
+            heads = list(self.feed.headlines.get(self.sym, []))
+            updated = self.feed.updated
+        # top bar: logo, command line, status, clocks
+        scr.put(0, 0, " " * W, self.c(AMBER))
+        scr.put(0, 0, " TAPE ", self.c(SEL, True))
+        prompt = " ▸ " + self.cmd
+        scr.put(0, 6, prompt, self.c(WHITE, True))
+        scr.put(0, 6 + len(prompt), "█", self.c(AMBER))
+        scr.put(0, 8 + len(prompt), "<GO>", self.c(KEY, True))
+        right = "  ".join(clocks())
+        status = nyse_status()
+        stamp = ("DELAYED %s" % time.strftime("%H:%M:%S", time.localtime(updated))) if updated else "CONNECTING…"
+        if self.feed.src:
+            stamp = "DEMO DATA"
+        tail = "%s  %s  %s " % (status, stamp, right)
+        if W - len(tail) > 30 + len(prompt):
+            scr.put(0, W - len(tail), tail, self.c(AMBER))
+        # index strip
+        x = 0
+        for label, s in INDICES:
+            q = quotes.get(s)
+            if not q or "error" in q:
+                cell = "%s —" % label
+                parts = [(cell, DIM)]
+            else:
+                parts = [(label + " ", AMBER), (fmt_price(q["price"]) + " ", WHITE),
+                         (fmt_pct(q["pct"]), UP if q["change"] >= 0 else DOWN)]
+            width = sum(len(p[0]) for p in parts) + 3
+            if x + width > W:
+                break
+            for text, col in parts:
+                scr.put(1, x + 1, text, self.c(col, col == WHITE))
+                x += len(text)
+            scr.put(1, x + 1, " │", self.c(DIM))
+            x += 3
+        top, bottom = 2, H - 2
+        if W >= 118 and H >= 28:
+            lw = max(58, int(W * 0.40))
+            self.draw_watch(scr, top, 0, lw - 1, min(len(self.watch) + 2, (bottom - top) * 6 // 10), quotes)
+            wy = top + min(len(self.watch) + 2, (bottom - top) * 6 // 10) + 1
+            self.draw_markets(scr, wy, 0, lw - 1, bottom - wy, quotes)
+            chh = (bottom - top) * 6 // 10
+            self.draw_chart(scr, top, lw, W - lw, chh, ch)
+            self.draw_news(scr, top + chh + 1, lw, W - lw, bottom - top - chh - 1, heads)
+        else:
+            wh = min(len(self.watch) + 2, (bottom - top) // 2)
+            self.draw_watch(scr, top, 0, W, wh, quotes)
+            self.draw_chart(scr, top + wh + 1, 0, W, bottom - top - wh - 1, ch)
+        # message + keys
+        scr.put(H - 2, 0, (" " + self.msg)[:W].ljust(W), self.c(AMBER))
+        keys = [("↑↓", "PICK"), ("⏎", "CHART"), ("1D 5D 1M 6M 1Y 5Y", "RANGE"), ("ADD/DEL", "WATCH"),
+                ("F5", "REFRESH"), ("HELP", ""), ("QUIT", "")]
+        x = 0
+        scr.put(H - 1, 0, " " * W, self.c(DIM))
+        for k, label in keys:
+            if x + len(k) + len(label) + 3 > W:
+                break
+            scr.put(H - 1, x, " " + k + " ", self.c(SEL, True))
+            x += len(k) + 2
+            if label:
+                scr.put(H - 1, x, " " + label, self.c(AMBER))
+                x += len(label) + 1
+            x += 1
+        if self.help:
+            self.draw_help(scr)
+
+    def draw_watch(self, scr, y, x, w, h, quotes):
+        self.header(scr, y, x, w, "WATCHLIST", "%d SECURITIES " % len(self.watch))
+        sw = max(0, w - 54)
+        cols = " %-7s %-14s %10s %9s %8s %7s %s" % ("TICKER", "NAME", "LAST", "CHG", "%CHG", "VOLUME",
+                                                   "INTRADAY" if sw > 9 else "")
+        scr.put(y + 1, x, cols[:w], self.c(DIM, True))
+        rows = h - 2
+        first = max(0, min(self.sel - rows + 1, len(self.watch) - rows)) if rows > 0 else 0
+        first = max(0, min(first, self.sel))
+        for i, sym in enumerate(self.watch[first:first + rows]):
+            idx = first + i
+            q = quotes.get(sym)
+            yy = y + 2 + i
+            selected = idx == self.sel
+            base = self.c(SEL, True) if selected else 0
+            if selected:
+                scr.put(yy, x, " " * w, base)
+            if not q:
+                scr.put(yy, x, " %-7s %-14s %10s" % (sym, "", "…"), base or self.c(AMBER, True))
+                continue
+            if "error" in q:
+                scr.put(yy, x, " %-7s %s" % (sym, "not found"), base or self.c(DIM))
+                continue
+            up = q["change"] >= 0
+            col = UP if up else DOWN
+            name = (q.get("name") or "")[:14]
+            scr.put(yy, x, " %-7s" % sym[:7], base or self.c(AMBER, True))
+            scr.put(yy, x + 9, "%-14s" % name, base or self.c(AMBER))
+            scr.put(yy, x + 24, "%10s" % fmt_price(q["price"]), base or self.c(WHITE, True))
+            scr.put(yy, x + 35, "%9s" % fmt_chg(q["change"]), base or self.c(col))
+            scr.put(yy, x + 45, "%8s" % fmt_pct(q["pct"]), base or self.c(col, True))
+            scr.put(yy, x + 54, "%7s" % fmt_vol(q.get("volume")), base or self.c(DIM))
+            if sw > 9:
+                scr.put(yy, x + 62, spark(q.get("points", []), min(sw - 9, 40)), base or self.c(col))
+
+    def draw_markets(self, scr, y, x, w, h, quotes):
+        if h < 4:
+            return
+        movers = [quotes[s] for s in self.watch if s in quotes and "error" not in quotes[s]]
+        movers.sort(key=lambda q: q["pct"])
+        half = w // 2
+        self.header(scr, y, x, w, "MARKETS", "FX · RATES · CMDTY · CRYPTO ")
+        yy = y + 1
+        col = 0
+        for group, items in MARKETS:
+            gx = x + col * half
+            gy = yy
+            scr.put(gy, gx + 1, group, self.c(KEY, True))
+            for j, (label, s) in enumerate(items):
+                if gy + 1 + j >= y + h - 4:
+                    break
+                q = quotes.get(s)
+                scr.put(gy + 1 + j, gx + 1, "%-8s" % label, self.c(AMBER))
+                if q and "error" not in q:
+                    scr.put(gy + 1 + j, gx + 10, "%10s" % fmt_price(q["price"]), self.c(WHITE, True))
+                    scr.put(gy + 1 + j, gx + 21, "%8s" % fmt_pct(q["pct"]), self.c(UP if q["change"] >= 0 else DOWN))
+                else:
+                    scr.put(gy + 1 + j, gx + 10, "%10s" % "—", self.c(DIM))
+            col += 1
+            if col == 2:
+                col = 0
+                yy += len(items) + 2
+        my = yy + (len(MARKETS[-1][1]) + 2 if col == 1 else 0)
+        if my + 3 > y + h or len(movers) < 2:
+            return
+        self.header(scr, my, x, w, "MOVERS", "IN YOUR WATCHLIST ")
+        n = min(3, y + h - my - 1, len(movers) // 2)
+        for i in range(n):
+            g = movers[-1 - i]
+            l = movers[i]
+            scr.put(my + 1 + i, x + 1, "▲ %-6s %8s" % (g["symbol"][:6], fmt_pct(g["pct"])), self.c(UP, True))
+            scr.put(my + 1 + i, x + half + 1, "▼ %-6s %8s" % (l["symbol"][:6], fmt_pct(l["pct"])), self.c(DOWN, True))
+
+    def draw_chart(self, scr, y, x, w, h, c):
+        if h < 5:
+            return
+        tabs = "  ".join(("[%s]" % r) if r == self.rng else r for r in RANGES)
+        self.header(scr, y, x, w, "%s  CHART" % self.sym, tabs + " ")
+        if not c:
+            scr.put(y + 2, x + 2, "Loading %s…" % self.sym, self.c(AMBER))
+            return
+        if "error" in c:
+            scr.put(y + 2, x + 2, "%s: %s" % (self.sym, c["error"]), self.c(DOWN))
+            return
+        up = c["change"] >= 0
+        col = UP if up else DOWN
+        scr.put(y + 1, x + 1, (c.get("name") or self.sym)[: w - 40], self.c(AMBER, True))
+        scr.put(y + 2, x + 1, fmt_price(c["price"]), self.c(WHITE, True))
+        scr.put(y + 2, x + 2 + len(fmt_price(c["price"])), "%s  %s" % (fmt_chg(c["change"]), fmt_pct(c["pct"])), self.c(col, True))
+        info = "HI %s  LO %s  VOL %s  %s %s" % (fmt_price(max(c["points"]) if c["points"] else c.get("high")),
+                                              fmt_price(min(c["points"]) if c["points"] else c.get("low")),
+                                              fmt_vol(c.get("volume")), c.get("exchange", ""), c.get("currency", ""))
+        scr.put(y + 1, x + max(1, w - len(info) - 1), info, self.c(DIM))
+        axis = 11
+        cw, chh = w - axis - 2, h - 5
+        if cw < 10 or chh < 2:
+            return
+        prev = c.get("prev") if self.rng == "1D" else None
+        rows, meta = braille(c["points"], cw, chh, prev)
+        for i, row in enumerate(rows):
+            scr.put(y + 3 + i, x + 1, row, self.c(col))
+        if meta:
+            prow, lo, hi = meta
+            for i in range(chh):
+                v = hi - (hi - lo) * (i * 4 + 2) / (chh * 4 - 1)
+                if i % max(1, chh // 5) == 0 or i == chh - 1:
+                    scr.put(y + 3 + i, x + 2 + cw, "┤%9s" % fmt_price(v), self.c(DIM))
+            last = c["points"][-1] if c["points"] else c["price"]
+            lrow = min(chh - 1, max(0, int(round((hi - last) / (hi - lo) * (chh * 4 - 1))) // 4))
+            scr.put(y + 3 + lrow, x + 2 + cw, "◀%9s" % fmt_price(last), self.c(SEL, True))
+            if prow is not None and 0 <= prow < chh:
+                line = rows[prow]
+                for j, chx in enumerate(line):
+                    if chx == "⠀" and j % 2 == 0:
+                        scr.put(y + 3 + prow, x + 1 + j, "·", self.c(DIM))
+        # time axis
+        ts = c.get("times") or []
+        if ts:
+            fmt = "%H:%M" if self.rng in ("1D", "5D") else ("%d %b" if self.rng in ("1M", "6M") else "%b %y")
+            if self.rng == "5D":
+                fmt = "%a %H:%M"
+            ticks = 5 if cw > 60 else 3
+            for k in range(ticks):
+                frac = k / (ticks - 1)
+                t = ts[min(len(ts) - 1, int(frac * (len(ts) - 1)))]
+                label = datetime.fromtimestamp(t).strftime(fmt)
+                px = x + 1 + int(frac * (cw - len(label)))
+                scr.put(y + 3 + chh, px, label, self.c(DIM))
+
+    def draw_news(self, scr, y, x, w, h, heads):
+        if h < 3:
+            return
+        self.header(scr, y, x, w, "%s  NEWS" % self.sym, "TOP STORIES ")
+        if not heads:
+            scr.put(y + 1, x + 2, "No headlines yet.", self.c(DIM))
+            return
+        for i, n in enumerate(heads[: h - 1]):
+            t = datetime.fromtimestamp(n["time"]).strftime("%H:%M") if n["time"] else "     "
+            scr.put(y + 1 + i, x + 1, "%2d" % (i + 1), self.c(KEY, True))
+            scr.put(y + 1 + i, x + 4, t, self.c(DIM))
+            scr.put(y + 1 + i, x + 10, n["title"][: w - 11], self.c(AMBER if i % 2 else WHITE))
+
+    def draw_help(self, scr):
+        lines = ["TAPE  ·  commands", "",
+                 "AAPL            chart a ticker (any Yahoo symbol: ^GSPC, EURUSD=X, BTC-USD)",
+                 "AAPL 1Y         chart it over a range: 1D 5D 1M 6M 1Y 5Y",
+                 "ADD NVDA AMD    add to the watchlist",
+                 "DEL TSLA        remove (DEL alone removes the picked row)",
+                 "NEWS            refresh headlines for the chart",
+                 "↑ ↓  ⏎          pick a row and chart it",
+                 "F5              refresh now (quotes refresh every 30 s)",
+                 "QUIT            leave", "",
+                 "Data: Yahoo Finance, delayed. Not investment advice.",
+                 "HELP again to close"]
+        bw = min(scr.w - 4, max(len(l) for l in lines) + 4)
+        bh = len(lines) + 2
+        by, bx = max(1, (scr.h - bh) // 2), max(0, (scr.w - bw) // 2)
+        for i in range(bh):
+            scr.put(by + i, bx, " " * bw, self.c(SEL))
+        for i, l in enumerate(lines):
+            scr.put(by + 1 + i, bx + 2, l[: bw - 4], self.c(SEL, i == 0))
+
+
+def init_colors():
+    curses.start_color()
+    try:
+        curses.use_default_colors()
+        bg = -1
+    except curses.error:
+        bg = curses.COLOR_BLACK
+    yellow = curses.COLOR_YELLOW
+    pairs = {AMBER: (yellow, bg), UP: (curses.COLOR_GREEN, bg), DOWN: (curses.COLOR_RED, bg),
+             DIM: (8 if curses.COLORS > 8 else curses.COLOR_WHITE, bg), HEAD: (curses.COLOR_BLACK, yellow),
+             SEL: (curses.COLOR_BLACK, yellow), WHITE: (curses.COLOR_WHITE, bg), KEY: (curses.COLOR_CYAN, bg)}
+    attrs = {}
+    for k, (fg, b) in pairs.items():
+        curses.init_pair(k, fg, b)
+        attrs[k] = curses.color_pair(k)
+    attrs["bold"] = curses.A_BOLD
+    return attrs
+
+
+def main_curses(win, feed):
+    curses.curs_set(0)
+    win.timeout(250)
+    win.keypad(True)
+    app = App(feed, init_colors())
+    jobs = {"quotes": True, "load": True}
+    lock = threading.Lock()
+
+    def worker():
+        last = 0
+        while True:
+            with lock:
+                want_q, want_l = jobs["quotes"] or time.time() - last > 30, jobs["load"]
+                jobs["quotes"] = jobs["load"] = False
+                sym, rng = app.sym, app.rng
+            if want_l:
+                feed.load(sym, rng)
+            if want_q:
+                feed.refresh_quotes(app.all_syms())
+                last = time.time()
+            feed.wake.wait(1)
+            feed.wake.clear()
+
+    threading.Thread(target=worker, daemon=True).start()
+    while True:
+        win.erase()
+        scr = CursesScreen(win)
+        app.draw(scr)
+        win.refresh()
+        try:
+            k = win.get_wch()
+        except curses.error:  # the 250 ms timeout, no key
+            continue
+        if k == curses.KEY_RESIZE:
+            continue
+        what = None
+        if k in (curses.KEY_UP, curses.KEY_DOWN) and app.watch:
+            app.sel = (app.sel + (1 if k == curses.KEY_DOWN else -1)) % len(app.watch)
+            app.open(app.watch[app.sel])
+            what = "load"
+        elif k == curses.KEY_F5:
+            what = "quotes"
+            with lock:
+                jobs["load"] = True
+        elif k in ("\n", "\r", curses.KEY_ENTER, 10, 13):
+            what = app.run_cmd(app.cmd)
+            app.cmd = ""
+        elif k in ("\x1b", 27):
+            app.cmd, app.help = "", False
+        elif k in (curses.KEY_BACKSPACE, "\x7f", "\b", 127, 8):
+            app.cmd = app.cmd[:-1]
+        elif isinstance(k, str) and k.isprintable() and len(app.cmd) < 40:
+            app.cmd += k.upper()
+        if what == "quit":
+            return
+        if what in ("load", "go", "quotes"):
+            with lock:
+                jobs["quotes" if what == "quotes" else "load"] = True
+            feed.wake.set()
+
+
+def main():
+    args = sys.argv[1:]
+    if "-h" in args or "--help" in args:
+        print(__doc__.strip())
+        return
+    feed = Feed(demo="--demo" in args)
+    if "--dump" in args:
+        size = args[args.index("--dump") + 1] if args.index("--dump") + 1 < len(args) else "160x45"
+        w, h = (int(v) for v in size.lower().split("x"))
+        app = App(feed)
+        feed.refresh_quotes(app.all_syms())
+        feed.load(app.sym, app.rng)
+        scr = TextScreen(w, h)
+        app.draw(scr)
+        print(scr.text())
+        return
+    os.environ.setdefault("ESCDELAY", "25")
+    curses.wrapper(main_curses, feed)
+
+
+if __name__ == "__main__":
+    main()

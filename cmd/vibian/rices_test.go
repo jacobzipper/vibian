@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -63,5 +64,21 @@ func TestBuiltinRices(t *testing.T) {
 	}
 	if _, err := fetchRice("no-such-rice"); err == nil || !strings.Contains(err.Error(), "built-in rices: ") {
 		t.Errorf("unknown rice: %v, want an error listing the built-in ones", err)
+	}
+}
+
+// tape (the tape rice's market terminal) draws a whole frame offline.
+func TestTapeDemo(t *testing.T) {
+	if _, err := exec.LookPath("python3"); err != nil {
+		t.Skip("no python3")
+	}
+	for _, size := range []string{"160x45", "80x24", "40x10"} {
+		out, err := exec.Command("python3", "-I", "../../rices/tape/dotfiles/.local/bin/tape", "--demo", "--dump", size).CombinedOutput()
+		if err != nil {
+			t.Fatalf("%s: %v\n%s", size, err, out)
+		}
+		if !strings.Contains(string(out), "WATCHLIST") || !strings.Contains(string(out), "AAPL") {
+			t.Errorf("%s: no watchlist in\n%s", size, out)
+		}
 	}
 }

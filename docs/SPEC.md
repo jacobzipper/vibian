@@ -298,7 +298,7 @@ Jacob picked 6. Proposed split:
 | slot | example | why |
 |---|---|---|
 | **Flagship case study** | /g/ NHK rice in a day | It really happened, with receipts. Its own section, plus the installable `nhk` rice |
-| Headline 1 | **Bloomberg-terminal desk** | Biggest visual "wait, what": amber on black, tiled tickers, news and charts, keyboard-driven |
+| Headline 1 | **Bloomberg-terminal desk** | Biggest visual "wait, what": amber on black, tiled tickers, news and charts, keyboard-driven. **Built (2026-11-07)** as the `tape` rice: an original design and name, `hyprland` plus one stdlib-only Python TUI on Yahoo's free delayed feeds, with `--demo` for offline tests and screenshots. VM test and clip pending |
 | Headline 2 | **Startup mission control** | HN's own audience: chat apps, CI/deploys, uptime, revenue, health metrics on one screen |
 | Headline 3 | **Grandma / kid mode** | The emotional, shareable one: big buttons, locked down, the agent maintains it remotely |
 | Gallery | Arcade / couch-gaming kiosk | Boots straight into a controller-driven game shelf |
