@@ -2,8 +2,11 @@
 # build-deb.sh OUT_DIR — build vibian-base, what every Vibian install
 # carries: the vibian CLI and onboarding TUI, the agent kit (AGENTS.md and
 # skills), dracut's snapshot-boot overlay and GRUB defaults. Needs Go 1.24+.
+# VIBIAN_ARCH=arm64 cross-builds the arm64 package (default amd64).
 set -euo pipefail
-VERSION=0.6.0
+VERSION=0.7.0
+arch=${VIBIAN_ARCH:-amd64}
+case $arch in amd64|arm64) ;; *) echo "build-deb.sh: VIBIAN_ARCH must be amd64 or arm64" >&2; exit 2 ;; esac
 here=$(cd "$(dirname "$0")" && pwd)
 out=${1:?usage: build-deb.sh OUT_DIR}
 mkdir -p "$out"
@@ -16,7 +19,7 @@ cp -a "$here/root" "$pkg"
 chmod 600 "$pkg/etc/netplan/01-vibian-networkmanager.yaml" # netplan warns on readable configs
 repo=$here/../..
 mkdir -p "$pkg/usr/bin" "$pkg/usr/share/vibian"
-(cd "$repo" && CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=$VERSION" -o "$pkg/usr/bin/vibian" ./cmd/vibian)
+(cd "$repo" && CGO_ENABLED=0 GOOS=linux GOARCH=$arch go build -trimpath -ldflags "-s -w -X main.version=$VERSION" -o "$pkg/usr/bin/vibian" ./cmd/vibian)
 cp -a "$repo/agent-kit" "$pkg/usr/share/vibian/agent"
 cp -a "$repo/playbooks" "$pkg/usr/share/vibian/playbooks"
 cp -a "$repo/rices" "$pkg/usr/share/vibian/rices"
@@ -25,7 +28,7 @@ mkdir -p "$pkg/DEBIAN"
 cat > "$pkg/DEBIAN/control" <<CTL
 Package: vibian-base
 Version: $VERSION
-Architecture: amd64
+Architecture: $arch
 Maintainer: Vibian <noreply@github.com>
 Depends: btrfs-progs, dracut, dracut-core, git, grub-btrfs, network-manager, polkitd, snapper, sudo
 Recommends: gitleaks
@@ -91,6 +94,6 @@ fi
 SH
 chmod 755 "$pkg/DEBIAN/postinst"
 
-deb="$out/vibian-base_${VERSION}_amd64.deb"
+deb="$out/vibian-base_${VERSION}_${arch}.deb"
 dpkg-deb --root-owner-group -Zxz --build "$pkg" "$deb" >/dev/null
 echo "$deb"

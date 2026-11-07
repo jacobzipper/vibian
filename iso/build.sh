@@ -7,12 +7,19 @@
 #
 # --unattended is for VM tests only: no confirmation before wiping the largest
 # disk, and a throwaway login (vibian / vibian).
+# VIBIAN_ARCH is amd64 (the default) or arm64 and must match UBUNTU_ISO.
 # VIBIAN_CMDLINE_EXTRA adds kernel arguments (e.g. console=ttyS0,115200).
 # VIBIAN_APT_MIRROR points the install at another archive, e.g. an IP-addressed
 # one on networks whose DNS can't resolve Canonical hosts.
 set -euo pipefail
 
-UBUNTU_SHA256=cc8a95cde20f6ced61a322420de00f10cc3c90ced545daa46cb9c1a117f1d927
+# ubuntu-26.04.1-live-server-$arch.iso
+arch=${VIBIAN_ARCH:-amd64}
+case $arch in
+  amd64) UBUNTU_SHA256=cc8a95cde20f6ced61a322420de00f10cc3c90ced545daa46cb9c1a117f1d927 ;;
+  arm64) UBUNTU_SHA256=af78753c94b924c85c4964c670692a853f7c80299a4064e317edad95462e3168 ;;
+  *) echo "build.sh: VIBIAN_ARCH must be amd64 or arm64" >&2; exit 2 ;;
+esac
 here=$(cd "$(dirname "$0")" && pwd)
 src=${1:?usage: build.sh UBUNTU_ISO OUT_ISO [--unattended]}
 out=${2:?usage: build.sh UBUNTU_ISO OUT_ISO [--unattended]}
@@ -28,7 +35,7 @@ mkdir -p "$work/vibian"
 cp "$here/btrfs-layout.sh" "$work/vibian/"
 # packages the Ubuntu archive lacks, installed by btrfs-layout.sh
 bash "$here/../packages/grub-btrfs/build-deb.sh" "$work/vibian/pool" >/dev/null
-bash "$here/../packages/vibian-base/build-deb.sh" "$work/vibian/pool" >/dev/null
+VIBIAN_ARCH=$arch bash "$here/../packages/vibian-base/build-deb.sh" "$work/vibian/pool" >/dev/null
 cp "$here/autoinstall.yaml" "$work/autoinstall.yaml"
 
 cmdline=""
@@ -86,7 +93,7 @@ grep -vE ' \./(boot/grub/grub\.cfg|autoinstall\.yaml|vibian/.*)$' "$work/md5sum.
 
 rm -f "$out"
 xorriso -indev "$src" -outdev "$out" \
-  -volid "Vibian 26.04 amd64" \
+  -volid "Vibian 26.04 $arch" \
   -map "$work/grub.cfg" /boot/grub/grub.cfg \
   -map "$work/autoinstall.yaml" /autoinstall.yaml \
   -map "$work/vibian" /vibian \

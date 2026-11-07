@@ -250,8 +250,8 @@ func protected(arg string, dirs bool) string {
 // CorePackages are removed only with the owner's OK, on top of everything
 // apt marks essential, required or important.
 var CorePackages = []string{
-	"sudo", "snapper", "btrfs-progs", "grub-efi-amd64", "grub-efi-amd64-signed", "grub-common", "grub2-common",
-	"grub-btrfs", "shim-signed", "dracut", "dracut-core", "systemd", "systemd-sysv", "network-manager",
+	"sudo", "snapper", "btrfs-progs", "grub-efi-amd64", "grub-efi-amd64-signed", "grub-efi-arm64",
+	"grub-efi-arm64-signed", "grub-common", "grub2-common", "grub-btrfs", "shim-signed", "dracut", "dracut-core", "systemd", "systemd-sysv", "network-manager",
 	"openssh-server", "linux-generic", "linux-image-generic", "ubuntu-minimal", "ubuntu-standard",
 	"vibian-base", "git", "polkitd",
 }

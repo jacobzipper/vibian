@@ -5,32 +5,53 @@
 # check the disk layout over ssh. Works without KVM (slow TCG), so it can run
 # on build machines. Build the ISO with VIBIAN_CMDLINE_EXTRA=console=ttyS0,115200
 # so the installer log lands in WORKDIR/install.serial.log.
+#
+# VM_ARCH=arm64 tests an arm64 ISO (build it with VIBIAN_ARCH=arm64 and
+# console=ttyAMA0) on an emulated virt machine with AAVMF. VM_SKIP names
+# stages to leave out: computer, scoped, playbooks, snapshot (snapshot boot
+# and rollback). Under emulation the desktop playbooks take hours.
+# VM_SSH_PORT (default 2222) lets two tests run side by side.
 set -euo pipefail
 here=$(dirname "$(realpath "$0")")
 iso=$(realpath "${1:?usage: headless-install.sh ISO WORKDIR}")
 wd=${2:?usage: headless-install.sh ISO WORKDIR}
 mkdir -p "$wd" && cd "$wd"
 
+skip() { case " ${VM_SKIP:-} " in *" $1 "*) echo "== $1: skipped (VM_SKIP)"; return 0 ;; esac; return 1; }
+
 accel=tcg,thread=multi
-[ -w /dev/kvm ] && accel=kvm
-ovmf=/usr/share/OVMF
-qemu=(qemu-system-x86_64 -machine q35 -accel "$accel" -cpu max -smp "${VM_CPUS:-8}" -m "${VM_MEM:-6144}"
-      -drive "if=pflash,format=raw,readonly=on,file=$ovmf/OVMF_CODE_4M.fd"
+if [ "${VM_ARCH:-amd64}" = arm64 ]; then
+  # emulated: Ubuntu's AAVMF 2025.11 hangs after its banner on -cpu max
+  # (QEMU 10.2), so use a real core. The virt machine needs a display and a
+  # USB keyboard for the screendumps and GRUB keypresses
+  fw=/usr/share/AAVMF/AAVMF_CODE.fd vars=/usr/share/AAVMF/AAVMF_VARS.fd
+  qemu=(qemu-system-aarch64 -machine virt -accel "$accel" -cpu neoverse-n1
+        -device virtio-gpu-pci -device qemu-xhci -device usb-kbd)
+  cdrom() { echo -drive "file=$1,if=none,id=cd0,media=cdrom,readonly=on" -device virtio-scsi-pci -device scsi-cd,drive=cd0; }
+else
+  [ -w /dev/kvm ] && accel=kvm
+  fw=/usr/share/OVMF/OVMF_CODE_4M.fd vars=/usr/share/OVMF/OVMF_VARS_4M.fd
+  qemu=(qemu-system-x86_64 -machine q35 -accel "$accel" -cpu max)
+  cdrom() { echo -cdrom "$1" -boot d; }
+fi
+qemu+=(-smp "${VM_CPUS:-8}" -m "${VM_MEM:-6144}"
+      -drive "if=pflash,format=raw,readonly=on,file=$fw"
       -drive if=pflash,format=raw,file=vars.fd
       -drive file=disk.qcow2,if=virtio,format=qcow2
-      -nic user,model=virtio-net-pci,hostfwd=tcp:127.0.0.1:2222-:22
+      -nic "user,model=virtio-net-pci,hostfwd=tcp:127.0.0.1:${VM_SSH_PORT:-2222}-:22"
       -display none -no-reboot)
 
 rm -f disk.qcow2 vars.fd
 qemu-img create -f qcow2 disk.qcow2 40G >/dev/null
-cp "$ovmf/OVMF_VARS_4M.fd" vars.fd
+cp "$vars" vars.fd
 
 # a cancelled job must not leave a VM holding the disk and the ssh port
 trap 'pkill -P $$ 2>/dev/null; [ -f install.pid ] && kill "$(cat install.pid)" 2>/dev/null; true' EXIT TERM INT
 echo "== install ($accel) $(date -u +%T)"
 # serial goes to a log and a socket, so a stuck installer can be poked with
 # `socat - UNIX-CONNECT:WORKDIR/serial.sock`
-timeout "${INSTALL_TIMEOUT:-4h}" "${qemu[@]}" -cdrom "$iso" -boot d \
+# shellcheck disable=SC2046 # cdrom's words are meant to split (no spaces in $iso)
+timeout "${INSTALL_TIMEOUT:-4h}" "${qemu[@]}" $(cdrom "$iso") \
   -chardev socket,id=s0,path=serial.sock,server=on,wait=off,logfile=install.serial.log \
   -serial chardev:s0 -pidfile install.pid
 echo "== installer exited $(date -u +%T)"
@@ -46,7 +67,7 @@ boot boot.serial.log
 trap 'kill "$(cat vm.pid)" 2>/dev/null; true' EXIT TERM INT
 
 ssh_vm() {
-  sshpass -p vibian ssh -p 2222 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+  sshpass -p vibian ssh -p "${VM_SSH_PORT:-2222}" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
     -o ConnectTimeout=10 -o LogLevel=ERROR vibian@127.0.0.1 "$@"
 }
 for _ in $(seq 1 180); do ssh_vm true 2>/dev/null && break; sleep 10; done
@@ -176,6 +197,7 @@ done
 [ $fail = 0 ] || { echo "VM-TEST-FAIL"; exit 1; }
 
 # Computer use: the vibian-computer MCP server on headless Sway and Xvfb.
+if ! skip computer; then
 echo "== computer use"
 ssh_vm 'cat > /tmp/computer-drive.py' < "$here/computer-drive.py"
 ssh_vm 'bash -s' < "$here/computer-use.sh" 2>&1 | tee computer.log
@@ -186,8 +208,10 @@ for want in 'cu-apt=0' 'uinput-rule=present' \
   grep -qE -- "^$want" computer.log || { echo "MISSING (computer): $want"; fail=1; }
 done
 [ $fail = 0 ] || { echo "VM-TEST-FAIL"; exit 1; }
+fi
 
 # Scoped powers: vibian sudo, the risky list and the owner's approval.
+if ! skip scoped; then
 echo "== scoped powers"
 ssh_vm 'bash -s' < "$here/scoped-powers.sh" 2>&1 | tee scoped.log
 for want in 'set=0 mode=scoped' 'plain-sudo=no' 'plain=0 owner=root' 'nowhy=1' 'false=1' 'mkdir=0' 'risky=3' 'id=[0-9a-f]{8}' \
@@ -195,6 +219,8 @@ for want in 'set=0 mode=scoped' 'plain-sudo=no' 'plain=0 owner=root' 'nowhy=1' '
             'rerun=0 gone=yes' 'once=3' 'deny=0 left=0' 'ledger-cmd=1 ledger-ok=1 ledger-snap=1' 'restored=root'; do
   grep -qE -- "^$want" scoped.log || { echo "MISSING (scoped): $want"; fail=1; }
 done
+fi
+if ! skip playbooks; then
 echo "== desktop playbooks"
 : > playbook.log
 for id in hyprland sway niri i3 xfce kde-plasma gnome cosmic quickshell-desk ask-overlay headless; do
@@ -214,7 +240,9 @@ for id in hyprland sway niri i3 xfce kde-plasma gnome cosmic quickshell-desk ask
     grep -qE -- "^$id\.$want" playbook.log || { echo "MISSING (playbook $id): $want"; fail=1; }
   done
 done
+fi
 [ $fail = 0 ] || { echo "VM-TEST-FAIL"; exit 1; }
+if skip snapshot; then echo "VM-TEST-PASS"; exit 0; fi
 
 # Snapshot boot: take a snapshot, break the system, then pick the snapshot in
 # the GRUB menu with the arrow keys (like a person would) and check we're back
@@ -225,7 +253,14 @@ ssh_vm 'set -x
   n=$(s snapper -c root create -d pre-break --print-number)
   s touch /etc/vibian-broken
   s apt-get -o DPkg::Lock::Timeout=600 remove -y -q cowsay >/dev/null
-  sleep 10
+  # wait for grub-btrfsd to list the newest snapshot (apt adds its own) and
+  # finish writing: under emulation a rebuild takes minutes, and powering off
+  # mid-rebuild would leave the menu we read below out of date
+  last=$(s snapper --csvout -c root list --columns number | tail -1)
+  for _ in $(seq 1 180); do
+    s grep -qF "@snapshots/$last/snapshot " /boot/grub/grub-btrfs.cfg && ! s test -e /boot/grub/grub-btrfs.new && break
+    sleep 5
+  done
   echo "snapshot-menu=$(s grep -c "Vibian snapshots" /boot/grub/grub.cfg)"
   # menu positions: snapshot n in the snapshots list, the running kernel in its submenu
   s awk -v p="@snapshots/$n/snapshot " -v k="vmlinuz-$(uname -r)" "
@@ -264,7 +299,7 @@ done
 # Keep it: from the snapshot boot, make the snapshot the system, then boot
 # normally and check the pre-break state stuck.
 echo "== rollback"
-snap_n=$(grep -o '@snapshots/[0-9]*/snapshot' snapshot.log | head -1 | cut -d/ -f2)
+snap_n=$(grep -o 'subvol=@snapshots/[0-9]*/snapshot' snapshot.log | head -1 | cut -d/ -f2)
 ssh_vm "set -x
   vibian undo --to $snap_n --yes
   vibian log tail 1
