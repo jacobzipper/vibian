@@ -9,7 +9,7 @@ set -euo pipefail
 VERSION=4.14
 SHA256=4fe2f8a49b39e3e561fc51bbc5a0f81a7222c1e9ef8672e014e0ba3bedad20c6
 URL=https://github.com/Antynea/grub-btrfs/archive/refs/tags/v$VERSION.tar.gz
-REV=1vibian3
+REV=1vibian4
 
 out=${1:?usage: build-deb.sh OUT_DIR}
 mkdir -p "$out"
@@ -34,6 +34,17 @@ sed -i 's|^#GRUB_BTRFS_SUBMENUNAME=.*|GRUB_BTRFS_SUBMENUNAME="Vibian snapshots"|
   "$pkg/etc/default/grub-btrfs/config"
 grep -q '^GRUB_BTRFS_SNAPSHOT_KERNEL_PARAMETERS="rd.overlay=1"' "$pkg/etc/default/grub-btrfs/config"
 grep -q '^GRUB_BTRFS_SUBMENUNAME="Vibian snapshots"' "$pkg/etc/default/grub-btrfs/config"
+# Upstream moves grub-btrfs.cfg aside while it scans the snapshots, which can
+# take minutes, so a power cut then leaves GRUB with no snapshots menu at all.
+# Keep the old menu until the new one replaces it in one rename.
+gen=$pkg/etc/grub.d/41_snapshots-btrfs
+# shellcheck disable=SC2016 # the $ are the generator's own variables
+sed -i -e 's|mv -f "$grub_btrfs_directory/grub-btrfs.cfg" "$grub_btrfs_directory/grub-btrfs.cfg.bkp"|cp -f "$grub_btrfs_directory/grub-btrfs.cfg" "$grub_btrfs_directory/grub-btrfs.cfg.bkp"|' \
+  -e 's|cat "$grub_btrfs_directory/grub-btrfs.new" > "$grub_btrfs_directory/grub-btrfs.cfg"|mv -f "$grub_btrfs_directory/grub-btrfs.new" "$grub_btrfs_directory/grub-btrfs.cfg"|' \
+  -e '/print_error "No snapshots found."/i\    rm -f "$grub_btrfs_directory/grub-btrfs.cfg"' "$gen"
+# shellcheck disable=SC2016
+[ "$(grep -c -e 'cp -f "$grub_btrfs_directory/grub-btrfs.cfg"' -e 'mv -f "$grub_btrfs_directory/grub-btrfs.new"' \
+  -e '^    rm -f "$grub_btrfs_directory/grub-btrfs.cfg"$' "$gen")" = 3 ]
 
 mkdir -p "$pkg/DEBIAN"
 cat > "$pkg/DEBIAN/control" <<CTL
