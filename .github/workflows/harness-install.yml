@@ -1,0 +1,25 @@
+# Weekly: install every agent harness with its official installer in a
+# fresh Ubuntu 26.04 container and check that Vibian's brief, MCP servers
+# and turn hooks land where that version reads them. A failure means a
+# harness changed its installer, paths or flags: update
+# internal/harness/harness.go. Needs no secrets.
+name: harness install check
+on:
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  harnesses:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - run: bash packages/vibian-base/build-deb.sh out
+      - run: docker run --rm -v "$PWD:/src:ro" ubuntu:26.04 bash -c 'bash /src/tests/harness-install.sh /src/out/vibian-base_*.deb'
