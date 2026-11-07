@@ -261,7 +261,7 @@ vibian approve [<id>|--deny <id>]  # …the owner's OK (their own sudo password)
 - **Remote-access playbook:** talk to your OS agent from your phone (OpenClaw channels, Tailscale ssh, a web UI).
 
 ### 4.9 Optional component: Ask overlay and assistant panel
-A generalisation of the laptop's SUPER+/ "Ask N.H.K." and `nhk-claw`: a hotkey dialog, requests that run as background tasks, a desktop notification on finish, and a panel listing conversations. Harness-agnostic: it talks to `vibian agent run --background`. Built as a small GTK4/layer-shell app, so it works on any compositor rather than only Quickshell.
+A generalisation of the laptop's SUPER+/ "Ask N.H.K." and `nhk-claw`: a hotkey dialog, requests that run as background tasks, a desktop notification on finish, and a panel listing conversations. Harness-agnostic: it talks to `vibian ask`, which runs the agent's one-shot mode in the background between a snapshot pair (`vibian asks` lists the requests and answers). Built as a small GTK4/layer-shell app, so it works on any compositor rather than only Quickshell. **Done (2026-11-06)** as the `ask-overlay` playbook, an extra for any desktop playbook; the request list in the overlay is the panel.
 
 ---
 

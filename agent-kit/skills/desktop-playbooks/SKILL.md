@@ -16,7 +16,7 @@ The scripts take their choices from `VIBIAN_*` environment variables (the knobs)
 
 ## Picking one
 1. `vibian playbooks` lists them with a status. `tested` means Vibian's VM tests run it on every change. `untested` means it was written carefully but nobody has booted it yet, so say so.
-2. If the user hasn't said what they want, ask in one message what the computer is for (coding, gaming, a laptop on battery, a media box, a server) and whether they like tiling or floating windows. Then suggest one or two playbooks, saying why in a sentence each.
+2. If the user hasn't said what they want, ask in one message what the computer is for (coding, gaming, a laptop on battery, a media box, a server) and whether they like tiling or floating windows. Then suggest one or two playbooks, saying why in a sentence each. A server, or a machine nobody sits at, gets `headless`. Once a desktop is set up, offer `ask-overlay` too: SUPER+/ to ask the agent from anywhere.
 3. Check the hardware before you promise anything: `vibian doctor` and the `hardware` MCP tool. NVIDIA on Wayland needs the proprietary driver first (`drivers-hardware` skill). A laptop wants idle suspend and brightness keys.
 
 ## Running one
@@ -31,11 +31,13 @@ The scripts take their choices from `VIBIAN_*` environment variables (the knobs)
 - Re-run `user.sh` with different knobs to change the accent, gaps, terminal or keyboard. It only rewrites its own files.
 - The user's own settings go where the playbook says, and re-runs never touch them:
   - Hyprland: `~/.config/hypr/local.conf`.
+  - Quickshell desk: `~/.config/hypr/local.conf` for Hyprland, `~/.config/quickshell/vibian-desk/desk.json` for the desk's colours, terminal and widgets. The desk's `.qml` files are rewritten by `user.sh`: bigger changes go in a copy under another name (the playbook says how).
   - Sway: `~/.config/sway/config.d/`.
   - niri: `~/.config/niri/local.kdl` (run `niri validate` after editing).
   - i3: `~/.config/i3/config.d/` (run `i3 -C` to check, then SUPER+SHIFT+C to reload).
   - XFCE: the Settings Manager, or `xfconf-query -c <channel> -p <property> -n -t <type> -s <value>`. Never edit the XML files under `~/.config/xfce4/xfconf/`: xfconfd overwrites them.
   - COSMIC: Settings, or the one-value RON files under `~/.config/cosmic/com.system76.<Component>/v1/<key>` (COSMIC reloads them at once; a typo resets that key to the default). `user.sh` adds its shortcuts and dock pin to the user's own instead of replacing them.
+  - Headless: `~/.config/tmux/local.conf` for tmux. Open a port with `sudo ufw allow` and log it.
   - KDE Plasma: System Settings, or `kwriteconfig6`; never rewrite Plasma's rc files whole.
   - GNOME: Settings, or `gsettings`/`dconf` (a binary database, not files).
 - Switching desktops: run the new playbook. Its `system.sh` disables the other login screens, so only one is ever enabled. Remove the old desktop only if the user asks, with `vibian undo <ledger-id>` or the playbook's Undo section.
@@ -47,4 +49,4 @@ Do it by hand the same way: archive packages first, configs in `~/.config` with 
 - Don't start a compositor inside the user's SSH or TTY session to "test" it. `verify.sh` checks configs without a screen.
 - Don't restart the display manager while the user is logged in graphically without saying so first: it ends their session.
 - A desktop's own versions move fast. Prefer the Ubuntu archive; a PPA is opt-in, logged with the reason.
-- niri isn't in Ubuntu 26.04's archive. Its playbook builds the upstream release pinned in `system.sh` from source, which takes 5 to 20 minutes, so tell the user before you start it.
+- niri and Quickshell aren't in Ubuntu 26.04's archive. The niri and quickshell-desk playbooks build the upstream release pinned in `system.sh` from source, which takes 5 to 20 minutes, so tell the user before you start it.
