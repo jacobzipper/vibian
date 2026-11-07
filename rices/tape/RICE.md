@@ -13,6 +13,8 @@ crypto, the day's movers and the time in five financial centres.
 <img src="screenshots/tape-help.png" alt="tape's HELP overlay listing its commands" width="49%">
 </p>
 
+[A 26-second clip](screenshots/tape.gif) shows it being driven from the keyboard.
+
 Type a ticker and press Enter to chart it. `AAPL 1Y` charts a year,
 `ADD NVDA AMD` and `DEL TSLA` edit the watchlist, ↑ ↓ pick a row, F5
 refreshes now, `HELP` lists the rest. Any Yahoo Finance symbol works:

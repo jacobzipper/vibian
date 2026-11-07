@@ -56,7 +56,7 @@ vibian undo --to 7                             # or roll the whole machine back
 
 ## "Make me a Bloomberg terminal"
 
-<img src="rices/tape/screenshots/tape.png" alt="tape on Vibian: an amber-on-black market terminal with a command line, a watchlist, an intraday price chart, headlines, FX, rates, commodities, crypto, the day's movers and world clocks" width="900">
+<img src="rices/tape/screenshots/tape.gif" alt="tape on Vibian, typed commands charting NVDA, AAPL over a year and EUR/USD, adding ARM to the watchlist and opening HELP: an amber-on-black market terminal with a command line, a watchlist, an intraday price chart, headlines, FX, rates, commodities, crypto, the day's movers and world clocks" width="900">
 
 Ask for a trading desk and the agent applies **[tape](rices/tape/RICE.md)**, a rice that ships with Vibian (`vibian apply tape`). It's Hyprland in amber on black with one full-screen, keyboard-driven market terminal: type `NVDA 1Y` and press Enter to chart it, `ADD AMD` to watch it. Quotes, charts and headlines come from Yahoo Finance's free, delayed feeds, so there's no account and no key. It's one Python file, so the agent can add the panel you want next.
 

@@ -139,9 +139,19 @@ class Demo:
         prev, price = pts[0] * (1 + rnd.uniform(-0.004, 0.004)), pts[-1]
         step = {"1d": 300, "5d": 900, "1mo": 3600, "6mo": 86400, "1y": 86400, "5y": 604800}.get(rng, 300)
         t0 = 1794000000 - step * n
+        exchange, currency, volume = "NasdaqGS", "USD", int(rnd.uniform(8e6, 9e7))
+        if sym.endswith("=X"):  # FX: no volume, quoted in the second currency
+            core = sym[:-2]
+            exchange, currency, volume = "CCY", core[3:] if len(core) == 6 else core, None
+        elif sym.endswith("=F"):
+            exchange = "NY Mercantile"
+        elif sym.endswith("-USD"):
+            exchange = "CCC"
+        elif sym.startswith("^") or sym == "DX-Y.NYB":
+            exchange = "Index"
         return {"symbol": sym, "name": self.NAMES.get(sym, sym), "price": price, "prev": prev,
                 "change": price - prev, "pct": (price - prev) / prev * 100, "high": max(pts), "low": min(pts),
-                "volume": int(rnd.uniform(8e6, 9e7)), "currency": "USD", "exchange": "NasdaqGS",
+                "volume": volume, "currency": currency, "exchange": exchange,
                 "times": [t0 + i * step for i in range(n)], "points": pts}
 
     def news(self, sym):
@@ -157,7 +167,11 @@ class Demo:
              "TSLA": "Tesla, Inc.", "AMD": "Advanced Micro Devices", "AVGO": "Broadcom Inc.",
              "JPM": "JPMorgan Chase & Co.", "V": "Visa Inc.", "XOM": "Exxon Mobil Corporation",
              "LLY": "Eli Lilly and Company", "COST": "Costco Wholesale", "NFLX": "Netflix, Inc.",
-             "PLTR": "Palantir Technologies"}
+             "PLTR": "Palantir Technologies", "^GSPC": "S&P 500", "^IXIC": "NASDAQ Composite",
+             "^DJI": "Dow Jones Industrial Average", "^RUT": "Russell 2000", "^VIX": "CBOE Volatility Index",
+             "^TNX": "CBOE Interest Rate 10 Year T No", "EURUSD=X": "EUR/USD", "GBPUSD=X": "GBP/USD",
+             "JPY=X": "USD/JPY", "CNH=X": "USD/CNH", "CL=F": "Crude Oil", "GC=F": "Gold",
+             "BTC-USD": "Bitcoin USD", "ETH-USD": "Ethereum USD"}
 
 
 class Feed:
