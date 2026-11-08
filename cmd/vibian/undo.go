@@ -57,6 +57,11 @@ func cmdUndo(args []string) error {
 }
 
 func confirm(q string) bool {
+	if fi, err := os.Stdin.Stat(); err == nil && fi.Mode()&os.ModeCharDevice == 0 {
+		// an agent's shell: a prompt would just read EOF
+		fmt.Println(q + " No terminal to ask on: run it again with --yes once the owner has agreed.")
+		return false
+	}
 	fmt.Print(q + " [y/N] ")
 	ans, _ := bufio.NewReader(os.Stdin).ReadString('\n')
 	return strings.HasPrefix(strings.ToLower(strings.TrimSpace(ans)), "y")
@@ -111,7 +116,33 @@ func undoEntry(e ledger.Entry, yes bool) error {
 	}
 	fmt.Printf("Undone. Recorded as %s; `vibian undo %s` puts it back.\n", u.ID, u.ID)
 	fmt.Println("Running services keep old files open: restart them, or reboot if the change touched the kernel or drivers.")
+	if units := orphanUnits(); len(units) > 0 {
+		fmt.Printf("Still running though the undo removed them: %s. They're gone after a reboot, or stop them now with `sudo systemctl stop %s`.\n",
+			strings.Join(units, ", "), strings.Join(units, " "))
+	}
 	return nil
+}
+
+// orphanUnits reloads systemd and lists units that are still active but whose
+// unit files no longer exist, such as a display manager the undo removed.
+// They aren't stopped here: that could end the owner's session.
+func orphanUnits() []string {
+	if _, err := sys.RootOutput("systemctl", "daemon-reload"); err != nil {
+		return nil
+	}
+	out, _ := sys.Output("systemctl", "list-units", "--all", "--state=active", "--plain", "--no-legend", "--no-pager")
+	return parseOrphans(out)
+}
+
+func parseOrphans(listUnits string) []string {
+	var units []string
+	for _, l := range strings.Split(listUnits, "\n") {
+		f := strings.Fields(l)
+		if len(f) >= 3 && f[1] == "not-found" && f[2] == "active" && !strings.HasSuffix(f[0], ".scope") {
+			units = append(units, f[0])
+		}
+	}
+	return units
 }
 
 // btrfsTop mounts the top-level btrfs volume and returns its path.
