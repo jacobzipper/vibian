@@ -40,6 +40,10 @@ func cmdOnboard(args []string) error {
 		fmt.Println("Onboarding paused. Pick up where you left off with: vibian onboard")
 		return nil
 	}
+	// the powers step leaves sudo's prompt on screen; start the agent on a clean one
+	if fi, err := os.Stdout.Stat(); err == nil && fi.Mode()&os.ModeCharDevice != 0 {
+		fmt.Print("\033[H\033[2J")
+	}
 	os.MkdirAll(filepath.Dir(onboardedMarker()), 0o755)
 	os.WriteFile(onboardedMarker(), nil, 0o644)
 	if _, err := os.Stat(autologin); err == nil {
