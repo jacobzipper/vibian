@@ -193,7 +193,7 @@ Playful name, serious engineering: btrfs layout, snapshot boot, an append-only l
 | ISO remaster pipeline | ✅ amd64 and arm64 installers, built and published by the [release workflow](.github/workflows/release.yml) on every version tag. Both install and pass the VM test (amd64 under KVM, arm64 emulated); the interactive install and first boot also checked by hand on amd64 |
 | Installer disk picker | ✅ with several disks, asks which to erase ([`iso/pick-disk.sh`](iso/pick-disk.sh)); tested in a two-disk VM, both ways round |
 | btrfs + snapper autoinstall layout | ✅ boots from `@`, apt snapshots work ([test](tests/vm/headless-install.sh)) |
-| grub-btrfs snapshot boot menu | ✅ packaged ([`packages/grub-btrfs`](packages/grub-btrfs)), menu fills in as snapshots are taken |
+| grub-btrfs snapshot boot menu | ✅ packaged ([`packages/grub-btrfs`](packages/grub-btrfs)), menu fills in as snapshots are taken. Patched so a crash during a menu rebuild can't lose the menu; sent upstream as [grub-btrfs#446](https://github.com/Antynea/grub-btrfs/pull/446) |
 | Booting a snapshot | ✅ pick it in GRUB → the system comes up as it was, in a RAM overlay ([`packages/vibian-base`](packages/vibian-base)) |
 | Onboarding TUI, `vibian` CLI, ledger | ✅ first boot lands in onboarding on tty1; `vibian snap/log/undo/doctor` and the git-backed ledger ([`cmd/vibian`](cmd/vibian)) |
 | Rollback | ✅ `vibian undo --to <n>`, even from a snapshot boot: the next boot runs the snapshot as `@`, and the old root is kept for 7 days |
@@ -217,6 +217,8 @@ Playful name, serious engineering: btrfs layout, snapshot boot, an append-only l
 ## How Vibian started
 
 Vibian started as one laptop. A stock Ubuntu install became a fully custom anime rice in about a day, entirely by prompting coding agents. It had a Windows-style desk, drag-to-edge tiling, a VPN widget, a local image-generation app and an embedded agent with computer use. Then a second agent picked up where the first left off by reading its change log. Vibian turns that into an OS.
+
+Building it has already turned up an upstream bug. Vibian's snapshot boot menu comes from [grub-btrfs](https://github.com/Antynea/grub-btrfs), around since 2014. Our VM test powers the machine off and boots it into a snapshot, and it caught this: since a January 2023 change, grub-btrfs moved its menu file aside while it scanned the snapshots. A crash or power cut in that window left GRUB with no snapshot menu, at the moment you need one most. Vibian's package carries the fix, and it's sent upstream as [grub-btrfs#446](https://github.com/Antynea/grub-btrfs/pull/446).
 
 ## Contributing
 
