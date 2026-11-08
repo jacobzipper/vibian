@@ -232,7 +232,7 @@ EOF2
 put "$cfg/waybar/config.jsonc" <<EOF2
 // from the vibian playbook "hyprland"
 {
-  "layer": "top",
+  "layer": "bottom",
   "height": 30,
   "modules-left": ["hyprland/workspaces", "hyprland/window"],
   "modules-center": ["clock"],

@@ -39,7 +39,16 @@ build=(rustc cargo clang gcc pkg-config curl xz-utils libudev-dev libgbm-dev lib
 export DEBIAN_FRONTEND=noninteractive
 # right after first boot, an apt job (locales, unattended-upgrades) may hold the lock
 apt-get -o DPkg::Lock::Timeout=300 update -q
+# A display manager's postinst starts it on the spot, which would pull the
+# screen out from under the install. Hold just the login screens until apt is
+# done; they come up at the next boot (or on `systemctl start`).
+held=
+if [ ! -e /usr/sbin/policy-rc.d ]; then
+  printf '#!/bin/sh\nfor a; do case $a in greetd*|gdm*|sddm*|lightdm*|cosmic-greeter*|display-manager*) exit 101 ;; esac; done\n' > /usr/sbin/policy-rc.d
+  chmod 755 /usr/sbin/policy-rc.d; held=1; trap 'rm -f /usr/sbin/policy-rc.d' EXIT
+fi
 apt-get -o DPkg::Lock::Timeout=300 install -y -q --no-install-recommends "${pkgs[@]}"
+[ -z "$held" ] || { rm -f /usr/sbin/policy-rc.d; trap - EXIT; }
 
 have() { "$1" --version 2>/dev/null | grep -qF " $2"; }
 need_niri=1; have /usr/local/bin/niri "$NIRI_VER" && need_niri=0

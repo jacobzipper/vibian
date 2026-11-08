@@ -40,7 +40,16 @@ export DEBIAN_FRONTEND=noninteractive
 # right after first boot, an apt job (locales, unattended-upgrades) may hold the lock
 apt-get -o DPkg::Lock::Timeout=300 update -q
 # cosmic-session conflicts with seatd (COSMIC uses logind), so apt removes it
+# A display manager's postinst starts it on the spot, which would pull the
+# screen out from under the install. Hold just the login screens until apt is
+# done; they come up at the next boot (or on `systemctl start`).
+held=
+if [ ! -e /usr/sbin/policy-rc.d ]; then
+  printf '#!/bin/sh\nfor a; do case $a in greetd*|gdm*|sddm*|lightdm*|cosmic-greeter*|display-manager*) exit 101 ;; esac; done\n' > /usr/sbin/policy-rc.d
+  chmod 755 /usr/sbin/policy-rc.d; held=1; trap 'rm -f /usr/sbin/policy-rc.d' EXIT
+fi
 apt-get -o DPkg::Lock::Timeout=300 install -y -q --no-install-recommends "${pkgs[@]}"
+[ -z "$held" ] || { rm -f /usr/sbin/policy-rc.d; trap - EXIT; }
 
 # Ubuntu enables these user services for every graphical session; COSMIC has
 # its own panel, notifications and idle handling

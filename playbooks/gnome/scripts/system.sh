@@ -19,11 +19,20 @@ pkgs=("${base[@]}" gdm3 gnome-shell gnome-control-center gnome-settings-daemon g
 export DEBIAN_FRONTEND=noninteractive
 # right after first boot, an apt job (locales, unattended-upgrades) may hold the lock
 apt-get -o DPkg::Lock::Timeout=300 update -q
+# A display manager's postinst starts it on the spot, which would pull the
+# screen out from under the install. Hold just the login screens until apt is
+# done; they come up at the next boot (or on `systemctl start`).
+held=
+if [ ! -e /usr/sbin/policy-rc.d ]; then
+  printf '#!/bin/sh\nfor a; do case $a in greetd*|gdm*|sddm*|lightdm*|cosmic-greeter*|display-manager*) exit 101 ;; esac; done\n' > /usr/sbin/policy-rc.d
+  chmod 755 /usr/sbin/policy-rc.d; held=1; trap 'rm -f /usr/sbin/policy-rc.d' EXIT
+fi
 if [ "$apps" = minimal ]; then
   apt-get -o DPkg::Lock::Timeout=300 install -y -q --no-install-recommends "${pkgs[@]}"
 else
   apt-get -o DPkg::Lock::Timeout=300 install -y -q "${pkgs[@]}"
 fi
+[ -z "$held" ] || { rm -f /usr/sbin/policy-rc.d; trap - EXIT; }
 
 # one login screen at a time: another desktop's may own display-manager.service
 for dm in greetd sddm lightdm cosmic-greeter; do systemctl disable -q "$dm" 2>/dev/null || true; done

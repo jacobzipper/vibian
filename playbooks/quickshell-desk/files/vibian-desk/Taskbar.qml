@@ -18,6 +18,8 @@ PanelWindow {
     implicitHeight: 44
     color: "transparent"
     WlrLayershell.namespace: "vibian-taskbar"
+    // bottom, not top: keeps its reserved strip but a fullscreen window covers it
+    WlrLayershell.layer: WlrLayer.Bottom
 
     readonly property var monitor: Hyprland.monitorFor(screen)
     readonly property var workspaces: Hyprland.workspaces.values

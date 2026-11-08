@@ -495,7 +495,8 @@ class App:
             x += 3
         top, bottom = 2, H - 2
         if W >= 118 and H >= 28:
-            lw = max(58, int(W * 0.40))
+            # 63 columns fit the watchlist through VOLUME and two market columns side by side
+            lw = max(63, int(W * 0.40))
             self.draw_watch(scr, top, 0, lw - 1, min(len(self.watch) + 2, (bottom - top) * 6 // 10), quotes)
             wy = top + min(len(self.watch) + 2, (bottom - top) * 6 // 10) + 1
             self.draw_markets(scr, wy, 0, lw - 1, bottom - wy, quotes)
@@ -567,26 +568,25 @@ class App:
         half = w // 2
         self.header(scr, y, x, w, "MARKETS", "FX · RATES · CMDTY · CRYPTO ")
         yy = y + 1
-        col = 0
-        for group, items in MARKETS:
-            gx = x + col * half
-            gy = yy
-            scr.put(gy, gx + 1, group, self.c(KEY, True))
-            for j, (label, s) in enumerate(items):
-                if gy + 1 + j >= y + h - 4:
-                    break
-                q = quotes.get(s)
-                scr.put(gy + 1 + j, gx + 1, "%-8s" % label, self.c(AMBER))
-                if q and "error" not in q:
-                    scr.put(gy + 1 + j, gx + 10, "%10s" % fmt_price(q["price"]), self.c(WHITE, True))
-                    scr.put(gy + 1 + j, gx + 21, "%8s" % fmt_pct(q["pct"]), self.c(UP if q["change"] >= 0 else DOWN))
-                else:
-                    scr.put(gy + 1 + j, gx + 10, "%10s" % "—", self.c(DIM))
-            col += 1
-            if col == 2:
-                col = 0
-                yy += len(items) + 2
-        my = yy + (len(MARKETS[-1][1]) + 2 if col == 1 else 0)
+        # groups go in pairs, side by side; a pair that runs out of rows is cut
+        # short, and one with no room for a single row isn't drawn at all
+        for pair in (MARKETS[0:2], MARKETS[2:4]):
+            rows = min(max(len(items) for _, items in pair), y + h - yy - 1)
+            if rows < 1:
+                break
+            for col, (group, items) in enumerate(pair):
+                gx = x + col * half
+                scr.put(yy, gx + 1, group, self.c(KEY, True))
+                for j, (label, s) in enumerate(items[:rows]):
+                    q = quotes.get(s)
+                    scr.put(yy + 1 + j, gx + 1, "%-8s" % label, self.c(AMBER))
+                    if q and "error" not in q:
+                        scr.put(yy + 1 + j, gx + 10, "%10s" % fmt_price(q["price"]), self.c(WHITE, True))
+                        scr.put(yy + 1 + j, gx + 21, "%8s" % fmt_pct(q["pct"]), self.c(UP if q["change"] >= 0 else DOWN))
+                    else:
+                        scr.put(yy + 1 + j, gx + 10, "%10s" % "—", self.c(DIM))
+            yy += rows + 2
+        my = yy
         if my + 3 > y + h or len(movers) < 2:
             return
         self.header(scr, my, x, w, "MOVERS", "IN YOUR WATCHLIST ")
