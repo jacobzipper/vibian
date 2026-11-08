@@ -66,12 +66,12 @@ Ask for a trading desk and the agent applies **[tape](rices/tape/RICE.md)**, a r
 
 ## Download
 
-**Vibian 0.7.1 is out**, for **amd64** (Intel and AMD PCs) and **arm64** (ARM machines with UEFI, and ARM VMs like UTM or Parallels on Apple Silicon). Get the ISO from **[Releases](https://github.com/jacobzipper/vibian/releases)**.
+**Vibian 0.7.2 is out**, for **amd64** (Intel and AMD PCs) and **arm64** (ARM machines with UEFI, and ARM VMs like UTM or Parallels on Apple Silicon). Get the ISO from **[Releases](https://github.com/jacobzipper/vibian/releases)**.
 
 GitHub caps release files at 2 GiB, so each ISO comes in two parts:
 
 ```sh
-cat vibian-0.7.1-amd64.iso.part* > vibian-0.7.1-amd64.iso   # then write it to a USB stick
+cat vibian-0.7.2-amd64.iso.part* > vibian-0.7.2-amd64.iso   # then write it to a USB stick
 ```
 
 It's pre-alpha: use a spare machine or a VM. **The installer erases the whole disk it installs to**; if there are several, it asks which. The [install guide](docs/INSTALL.md) covers checksums, USB sticks, the installer and first boot.

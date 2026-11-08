@@ -7,7 +7,7 @@
 # are where that harness version reads them. Harnesses change their
 # installers, paths and flags often; this runs weekly in CI to catch it.
 # Run as root in a throwaway container:
-#   docker run --rm -v "$PWD:/src:ro" ubuntu:26.04 bash /src/tests/harness-install.sh /src/out/vibian-base_0.7.1_amd64.deb
+#   docker run --rm -v "$PWD:/src:ro" ubuntu:26.04 bash /src/tests/harness-install.sh /src/out/vibian-base_0.7.2_amd64.deb
 # Prints harness.<id>=ok or harness.<id>=FAIL (why) per harness, and exits 1
 # if any failed. HARNESSES limits the run (space-separated ids).
 set -uo pipefail
