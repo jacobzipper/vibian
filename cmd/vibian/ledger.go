@@ -24,6 +24,17 @@ func (l *listFlag) Set(v string) error {
 	return nil
 }
 
+// textFlag collects a repeatable flag whose values are prose, so commas stay.
+type textFlag []string
+
+func (l *textFlag) String() string { return strings.Join(*l, "; ") }
+func (l *textFlag) Set(v string) error {
+	if v = strings.TrimSpace(v); v != "" {
+		*l = append(*l, v)
+	}
+	return nil
+}
+
 // parse lets flags come after positional args ("vibian log add "x" --files a").
 func parse(fs *flag.FlagSet, args []string) ([]string, error) {
 	var pos []string
@@ -126,10 +137,11 @@ func cmdLog(args []string) error {
 
 func logAdd(args []string) error {
 	fs := flag.NewFlagSet("log add", flag.ContinueOnError)
-	var files, pkgs, gotchas listFlag
+	var files, pkgs listFlag
+	var gotchas textFlag
 	fs.Var(&files, "files", "changed paths (repeat or comma-separate)")
 	fs.Var(&pkgs, "pkgs", "packages: +added, -removed")
-	fs.Var(&gotchas, "gotcha", "something the next agent should know")
+	fs.Var(&gotchas, "gotcha", "something the next agent should know (repeat for more)")
 	undo := fs.String("undo", "", "how to undo it, if not just `vibian undo <id>`")
 	noSnap := fs.Bool("no-snap", false, "don't close the pending snap or take one")
 	pos, err := parse(fs, args)
