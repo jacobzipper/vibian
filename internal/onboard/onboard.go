@@ -162,6 +162,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case "s":
 			if m.step == stepInstall && m.noLogin {
+				m.err = nil
 				return m.afterExec(execMsg{"login", nil})
 			}
 			if m.step == stepNetwork {
@@ -179,12 +180,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// powersChoices is the Powers step, in screen order.
+var powersChoices = []struct {
+	p          harness.Powers
+	name, desc string
+}{
+	{harness.PowersRoot, "Everything", "Passwordless sudo and no permission prompts.\nSnapshots and the ledger mean any change can be undone."},
+	{harness.PowersConfirm, "Ask first", "sudo asks for your password and the agent asks before acting."},
+	{harness.PowersScoped, "Scoped", "No sudo. The agent runs root commands one at a time with\n`vibian sudo`; each is logged, and risky ones (disks, boot,\nremoving core packages) wait for you to run `sudo vibian approve`."},
+}
+
 func (m Model) options() int {
 	switch m.step {
 	case stepAgent:
 		return len(harness.All)
 	case stepPowers:
-		return 3
+		return len(powersChoices)
 	case stepNetwork:
 		if m.picking() {
 			return len(m.nets)
@@ -225,7 +236,7 @@ func (m Model) next() (tea.Model, tea.Cmd) {
 		}
 		return m.login()
 	case stepPowers:
-		m.powers = []harness.Powers{harness.PowersRoot, harness.PowersConfirm, harness.PowersScoped}[m.cursor]
+		m.powers = powersChoices[m.cursor].p
 		m.busy = "powers"
 		c := exec.Command(m.self, "powers", string(m.powers))
 		return m, tea.ExecProcess(announce(c, "Setting the agent's powers (sudo may ask for your password)"), func(err error) tea.Msg { return execMsg{"powers", err} })
@@ -259,7 +270,11 @@ func (m Model) afterExec(msg execMsg) (tea.Model, tea.Cmd) {
 		// cancelling a provider picker isn't fatal: most harnesses can log
 		// in from inside the session too
 		m.noLogin = true
-		m.err = fmt.Errorf("login didn't finish (%v). enter: try again  ·  s: skip, log in later inside %s  ·  b: back", msg.err, m.harness.Name)
+		why := fmt.Sprintf("didn't finish (%v)", msg.err)
+		if ee, ok := msg.err.(*exec.ExitError); ok && ee.ExitCode() == 130 {
+			why = "cancelled"
+		}
+		m.err = fmt.Errorf("login %s. enter: try again  ·  s: skip, log in later inside %s  ·  b: back", why, m.harness.Name)
 		return m, nil
 	}
 	if msg.err != nil {
@@ -287,10 +302,12 @@ func (m Model) afterExec(msg execMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// announce prints a header before a command takes over the terminal.
+// announce prints a header before a command takes over the terminal. A
+// failure waits for enter so its output can be read; 130 is a deliberate
+// cancel (Esc or Ctrl+C), which goes straight back.
 func announce(c *exec.Cmd, what string) *exec.Cmd {
 	script := `printf '\033[H\033[2J\033[1;33m▸ %s\033[0m\n\n' "$1"; shift; "$@"; rc=$?; ` +
-		`[ $rc -eq 0 ] || { printf '\n\033[31mexit %s\033[0m. Press enter to go back.' $rc; read -r _; }; exit $rc`
+		`[ $rc -eq 0 ] || [ $rc -eq 130 ] || { printf '\n\033[31mexit %s\033[0m. Press enter to go back.' $rc; read -r _; }; exit $rc`
 	wrapped := exec.Command("sh", append([]string{"-c", script, "sh", what, c.Path}, c.Args[1:]...)...)
 	wrapped.Env, wrapped.Dir = c.Env, c.Dir
 	return wrapped
@@ -393,16 +410,15 @@ func (m Model) View() string {
 		}
 	case stepPowers:
 		b.WriteString(bold.Render("How much can "+m.harness.Name+" do?") + "\n\n")
-		opts := []struct{ name, desc string }{
-			{"Everything (recommended)", "Passwordless sudo and no permission prompts.\nSnapshots and the ledger mean any change can be undone."},
-			{"Ask first", "sudo asks for your password and the agent asks before acting."},
-			{"Scoped", "No sudo. The agent runs root commands one at a time with `vibian sudo`;\neach is logged, and risky ones (disks, boot, removing core packages)\nwait for you to run `sudo vibian approve`."},
-		}
-		for i, o := range opts {
+		for i, o := range powersChoices {
+			name := o.name
+			if i == 0 {
+				name += " (recommended)"
+			}
 			if i == m.cursor {
-				b.WriteString(sel.Render("› "+o.name) + "\n")
+				b.WriteString(sel.Render("› "+name) + "\n")
 			} else {
-				b.WriteString("  " + o.name + "\n")
+				b.WriteString("  " + name + "\n")
 			}
 			b.WriteString(dim.Render(indent(o.desc, "    ")) + "\n\n")
 		}
@@ -412,7 +428,13 @@ func (m Model) View() string {
 		b.WriteString(dim.Render("Change it later with `vibian powers`.  ↑/↓  ·  enter: choose"))
 	case stepHandoff:
 		b.WriteString(bold.Render("All set.") + "\n\n")
-		b.WriteString(fmt.Sprintf("Agent:   %s\nPowers:  %s\n\n", m.harness.Name, m.powers))
+		powers := string(m.powers)
+		for _, o := range powersChoices {
+			if o.p == m.powers {
+				powers = o.name
+			}
+		}
+		b.WriteString(fmt.Sprintf("Agent:   %s\nPowers:  %s\n\n", m.harness.Name, powers))
 		b.WriteString("Press enter and " + m.harness.Name + " takes over. Start it again any time\nwith `vibian agent`.\n\n")
 		if m.harness.LoginCmd() == nil && m.harness.LoginHint != "" {
 			b.WriteString(warnSty.Render(m.harness.LoginHint) + "\n\n")
