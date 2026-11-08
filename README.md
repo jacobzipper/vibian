@@ -47,6 +47,10 @@ Giving an LLM root sounds insane. So Vibian is built around **undo**.
 3. **Say what you want.** *"Set up my NVIDIA card." "Give me a tiling desktop that feels like macOS." "Make the text bigger."* Talk to the agent in a terminal, or send a quick `vibian ask` and get a notification when it's done.
 4. **Undo anything.** Every change is snapshotted and written down. `vibian undo` puts it back.
 
+<img src="docs/assets/hero.gif" alt="A whole run in a VM, sped up: Vibian's onboarding picks Claude Code with full powers, Claude introduces itself and offers the built-in setups, the owner types Make me a Bloomberg terminal, Claude installs Hyprland and the tape rice and logs it as L-0001, the owner logs in to a full-screen amber market terminal and charts NVDA, then asks for an undo and Claude reverses all of it as L-0002" width="900">
+
+<sub>One take in a VM, sped up and trimmed: onboarding, then Claude Code installs <a href="rices/tape/RICE.md">tape</a> from one sentence, then undoes it.</sub>
+
 ```sh
 vibian ask "install steam and quiet the fan"   # runs in the background, between snapshots
 vibian history                                 # what changed, when, and which agent did it
