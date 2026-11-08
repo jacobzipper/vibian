@@ -15,6 +15,7 @@ import (
 	"github.com/jacobzipper/vibian/internal/ledger"
 	"github.com/jacobzipper/vibian/internal/snap"
 	"github.com/jacobzipper/vibian/internal/sys"
+	"github.com/mattn/go-isatty"
 )
 
 func cmdUndo(args []string) error {
@@ -57,7 +58,7 @@ func cmdUndo(args []string) error {
 }
 
 func confirm(q string) bool {
-	if fi, err := os.Stdin.Stat(); err == nil && fi.Mode()&os.ModeCharDevice == 0 {
+	if !isatty.IsTerminal(os.Stdin.Fd()) {
 		// an agent's shell: a prompt would just read EOF
 		fmt.Println(q + " No terminal to ask on: run it again with --yes once the owner has agreed.")
 		return false
@@ -117,7 +118,7 @@ func undoEntry(e ledger.Entry, yes bool) error {
 	fmt.Printf("Undone. Recorded as %s; `vibian undo %s` puts it back.\n", u.ID, u.ID)
 	fmt.Println("Running services keep old files open: restart them, or reboot if the change touched the kernel or drivers.")
 	if units := orphanUnits(); len(units) > 0 {
-		fmt.Printf("Still running though the undo removed them: %s. They're gone after a reboot, or stop them now with `sudo systemctl stop %s`.\n",
+		fmt.Printf("Still running from unit files that are gone: %s. They stop for good at the next reboot, or now with `sudo systemctl stop %s`.\n",
 			strings.Join(units, ", "), strings.Join(units, " "))
 	}
 	return nil

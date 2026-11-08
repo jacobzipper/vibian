@@ -11,6 +11,7 @@ import (
 	"github.com/jacobzipper/vibian/internal/harness"
 	"github.com/jacobzipper/vibian/internal/onboard"
 	"github.com/jacobzipper/vibian/internal/sys"
+	"github.com/mattn/go-isatty"
 )
 
 // autologin is the tty1 drop-in the installer writes; onboarding removes it.
@@ -41,7 +42,7 @@ func cmdOnboard(args []string) error {
 		return nil
 	}
 	// the powers step leaves sudo's prompt on screen; start the agent on a clean one
-	if fi, err := os.Stdout.Stat(); err == nil && fi.Mode()&os.ModeCharDevice != 0 {
+	if isatty.IsTerminal(os.Stdout.Fd()) {
 		fmt.Print("\033[H\033[2J")
 	}
 	os.MkdirAll(filepath.Dir(onboardedMarker()), 0o755)
